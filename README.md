@@ -24,6 +24,22 @@ Welcome to Spy Hunt, a fast, social, and slightly chaotic party game for browser
 - **Cinematic reveals**: full‑screen elimination and “Mr / Ms White was caught!” animations.
 - **Results**: winner banner, secret word reveal, standings, and White’s guess.
 
+### Start screen
+![Start](./img/start.png)
+Enter your name and either create a new game or join an existing session with the code.
+
+### Lobby
+![Lobby](./img/lobby.png)
+See who’s in, copy the session code, and the host can start the game once enough players have joined.
+
+### Gameplay round
+![Gameplay](./img/gameplay.png)
+Players speak in turn, offering subtle clues about the secret word. Watch the timer and get ready to vote.
+
+### Elimination animation
+![Elimination](./img/end.png)
+The full‑screen reveal when someone is voted out—featuring the dramatic “Mr / Ms White was caught!” moment.
+
 ## Tech stack
 - **Frontend**: React + Vite, Zustand, Tailwind, Radix UI, Lucide icons, Socket.IO client
 - **Backend**: Fastify + Socket.IO, TypeScript, Zod
