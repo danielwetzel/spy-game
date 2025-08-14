@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+    image: danielwetzel/spy-game-backend:latest
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - HOST=0.0.0.0
+      # Comma-separated list of allowed origins for CORS. Replace with your domains.
+      # Example for Portainer stack behind a public domain:
+      # ALLOWED_ORIGINS=https://spy.example.com
+      - ALLOWED_ORIGINS=http://spy-frontend:80,http://spy-frontend,http://localhost:8081
+    ports:
+      - "8080:8080"
+    networks:
+      - spy_net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+      update_config:
+        order: start-first
+
+  frontend:
+    build:
+      context: ./frontend
+    image: danielwetzel/spy-game-frontend:latest
+    depends_on:
+      - backend
+    ports:
+      - "8081:80"
+    networks:
+      - spy_net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+      update_config:
+        order: start-first
+
+networks:
+  spy_net:
+    external: true
+    name: shared-bridge
+
+
