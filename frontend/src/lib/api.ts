@@ -1,9 +1,10 @@
-import { 
-  CreateSessionRequest, 
-  CreateSessionResponse, 
-  JoinSessionRequest, 
+import {
+  CreateSessionRequest,
+  CreateSessionResponse,
+  JoinSessionRequest,
   JoinSessionResponse,
-  SessionState 
+  SessionState,
+  GameMode
 } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
@@ -140,6 +141,21 @@ class ApiClient {
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.message || error.error || 'Failed to toggle ready status')
+    }
+
+    return response.json()
+  }
+
+  async updateGameMode(code: string, token: string, gameMode: GameMode): Promise<{ gameMode: GameMode }> {
+    const response = await fetch(`${API_BASE}/sessions/${code}/gamemode`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(token),
+      body: JSON.stringify({ gameMode }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || error.error || 'Failed to update game mode')
     }
 
     return response.json()

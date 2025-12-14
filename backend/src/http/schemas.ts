@@ -9,7 +9,8 @@ export const createSessionSchema = z.object({
     allowLateJoin: z.boolean().optional(),
     recordClues: z.boolean().optional()
   }).optional(),
-  category: z.string().min(1).max(50)
+  category: z.string().min(1).max(50),
+  gameMode: z.enum(['word', 'places_roles']).optional()
 });
 
 export const joinSessionSchema = z.object({
@@ -26,6 +27,10 @@ export const kickPlayerSchema = z.object({
 
 export const updateEmojiSchema = z.object({
   emoji: z.string().min(1).max(10)
+});
+
+export const updateGameModeSchema = z.object({
+  gameMode: z.enum(['word', 'places_roles'])
 });
 
 export type CreateSessionInput = z.infer<typeof createSessionSchema>;

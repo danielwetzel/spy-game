@@ -109,11 +109,14 @@ export function Home() {
 
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-2 animate-fade-in">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-2 animate-fade-in inline-flex items-start justify-center gap-3">
             Spy Hunt
+            <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full mt-1">
+              v2
+            </span>
           </h1>
           <p className="text-muted-foreground mb-4">
-            The ultimate multiplayer party game
+            Now even better
           </p>
           <Button
             variant="ghost"
@@ -149,7 +152,7 @@ export function Home() {
 
             {!isJoining ? (
               <div className="space-y-3">
-                <Button 
+                <Button
                   onClick={handleCreateGame}
                   disabled={!name.trim() || isLoading}
                   className="w-full"
@@ -157,8 +160,8 @@ export function Home() {
                 >
                   {createSessionMutation.isPending ? 'Creating...' : 'Create New Game'}
                 </Button>
-                
-                <Button 
+
+                <Button
                   variant="outline"
                   onClick={() => setIsJoining(true)}
                   className="w-full"
@@ -178,17 +181,17 @@ export function Home() {
                   autoComplete="off"
                   data-form-type="other"
                 />
-                
+
                 <div className="flex gap-2">
-                  <Button 
+                  <Button
                     onClick={handleJoinGame}
                     disabled={!name.trim() || !sessionCode.trim() || isLoading}
                     className="flex-1"
                   >
                     {joinSessionMutation.isPending ? 'Joining...' : 'Join Game'}
                   </Button>
-                  
-                  <Button 
+
+                  <Button
                     variant="outline"
                     onClick={() => {
                       setIsJoining(false)

@@ -1,5 +1,11 @@
 export type SessionCode = string;
 export type PlayerId = string;
+export type GameMode = "word" | "places_roles";
+
+export interface PlaceWithRoles {
+  place: string;
+  roles: string[];
+}
 
 export interface Player {
   id: PlayerId;
@@ -43,8 +49,12 @@ export interface SessionState {
   createdAt: number;
   phase: GamePhase;
   players: Player[];
+  gameMode: GameMode;
   secretWordCategory: string;
   secretWord: string | null;
+  // For places_roles mode
+  secretPlace: string | null;
+  playerRoles: Record<PlayerId, string> | null;
   whitePlayerId: PlayerId | null;
   round: RoundInfo | null;
   vote: VoteState | null;
@@ -69,6 +79,7 @@ export interface CreateSessionRequest {
     recordClues?: boolean;
   };
   category: string;
+  gameMode?: GameMode;
 }
 
 export interface CreateSessionResponse {
@@ -89,8 +100,11 @@ export interface JoinSessionResponse {
 }
 
 export interface PrivateRole {
-  role: "white" | "word";
+  role: "white" | "word" | "place_role";
   word?: string;
+  // For places_roles mode
+  place?: string;
+  playerRole?: string;
 }
 
 export interface GameEndResult {
@@ -98,6 +112,9 @@ export interface GameEndResult {
   secretWord: string;
   winner: "white" | "others";
   whiteGuess?: string;
+  // For places_roles mode
+  secretPlace?: string;
+  playerRoles?: Record<PlayerId, string>;
 }
 
 export interface PlayerScore {

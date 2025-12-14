@@ -38,10 +38,12 @@ export function setupSocketEvents(io: any) {
           gameStore.updateState(code, session.state);
         }
 
-        // Send current session state
+        // Send current session state (hide secrets)
         const sanitizedState = {
           ...session.state,
-          secretWord: null
+          secretWord: null,
+          secretPlace: null,
+          playerRoles: null
         };
         
         socket.emit('session/state', sanitizedState);
@@ -50,14 +52,23 @@ export function setupSocketEvents(io: any) {
         socket.to(code).emit('session/players_update', session.state.players);
 
         // If game is in progress and player needs private role info
-        if ((session.state.phase === 'round_play' || 
-             session.state.phase === 'voting' || 
+        if ((session.state.phase === 'round_play' ||
+             session.state.phase === 'voting' ||
              session.state.phase === 'white_guess') && player) {
-          
-          const role = player.isWhite 
-            ? { role: 'white' as const }
-            : { role: 'word' as const, word: session.state.secretWord! };
-          
+
+          let role;
+          if (player.isWhite) {
+            role = { role: 'white' as const };
+          } else if (session.state.gameMode === 'places_roles') {
+            role = {
+              role: 'place_role' as const,
+              place: session.state.secretPlace!,
+              playerRole: session.state.playerRoles![playerId]
+            };
+          } else {
+            role = { role: 'word' as const, word: session.state.secretWord! };
+          }
+
           socket.emit('game/dealt_private', role);
         }
 

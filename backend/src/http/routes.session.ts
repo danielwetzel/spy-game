@@ -8,7 +8,8 @@ import {
   joinSessionSchema,
   updateSeatingSchema,
   kickPlayerSchema,
-  updateEmojiSchema
+  updateEmojiSchema,
+  updateGameModeSchema
 } from './schemas';
 
 export async function sessionRoutes(fastify: FastifyInstance) {
@@ -37,9 +38,9 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       reply.status(400);
       return { error: 'Invalid request data', details: validation.error.issues };
     }
-    
-    const { name, settings = {}, category } = validation.data;
-    
+
+    const { name, settings = {}, category, gameMode = 'word' } = validation.data;
+
     const sessionCode = generateSessionCode(gameStore.getAllActiveCodes());
     const playerId = generatePlayerId();
     const playerToken = generatePlayerToken();
@@ -70,8 +71,11 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       createdAt: Date.now(),
       phase: 'lobby',
       players: [player],
+      gameMode: gameMode as 'word' | 'places_roles',
       secretWordCategory: category,
       secretWord: null,
+      secretPlace: null,
+      playerRoles: null,
       whitePlayerId: null,
       round: null,
       vote: null,
@@ -441,5 +445,48 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     fastify.io.to(code).emit('session/players_update', session.state.players);
 
     return { ok: true, isReady: player.isReady };
+  });
+
+  // Update game mode (host only)
+  fastify.post('/sessions/:code/gamemode', async (request: any, reply: any) => {
+    // Validate request body
+    const validation = updateGameModeSchema.safeParse(request.body);
+    if (!validation.success) {
+      reply.status(400);
+      return { error: 'Invalid request data', details: validation.error.issues };
+    }
+
+    const { code } = request.params;
+    const { gameMode } = validation.data;
+    const session = gameStore.getSession(code);
+
+    if (!session) {
+      reply.status(404);
+      return { error: 'Session not found' };
+    }
+
+    if (!request.playerId || request.playerId !== session.state.hostPlayerId) {
+      reply.status(403);
+      return { error: 'Only the host can change the game mode' };
+    }
+
+    if (session.state.phase !== 'lobby') {
+      reply.status(409);
+      return { error: 'Cannot change game mode after game starts' };
+    }
+
+    // Update game mode
+    session.state.gameMode = gameMode;
+    gameStore.updateState(code, session.state);
+
+    // Broadcast update to all players
+    fastify.io.to(code).emit('session/state', {
+      ...session.state,
+      secretWord: null,
+      secretPlace: null,
+      playerRoles: null
+    });
+
+    return { ok: true, gameMode };
   });
 }

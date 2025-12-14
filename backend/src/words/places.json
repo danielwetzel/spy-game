@@ -1,0 +1,178 @@
+[
+  {
+    "place": "SAP Office Berlin",
+    "roles": ["Executive", "Software Developer", "UX Designer", "Intern", "Office Dog", "Visitor", "Security Guard", "Facility Manager", "Product Manager", "Scrum Master", "Sales Representative", "Coffee Machine Technician"]
+  },
+  {
+    "place": "Castle",
+    "roles": ["King", "Queen", "Prince", "Princess", "Knight", "Guard", "Jester", "Wizard", "Cook", "Servant", "Dragon", "Ghost", "Blacksmith", "Horse"]
+  },
+  {
+    "place": "Airport",
+    "roles": ["Pilot", "Flight Attendant", "Passenger", "Security Guard", "Ticket Agent", "Tourist", "Baggage Handler", "Cleaner", "Customs Officer", "Duty Free Seller", "Taxi Driver", "Lost Child"]
+  },
+  {
+    "place": "School",
+    "roles": ["Teacher", "Student", "Principal", "Janitor", "Nurse", "Class Clown", "Bully", "Nerd", "Athlete", "Parent", "Lunch Lady", "Bus Driver"]
+  },
+  {
+    "place": "Hospital",
+    "roles": ["Doctor", "Nurse", "Surgeon", "Patient", "Baby", "Pregnant Mom", "Receptionist", "Cleaner", "Ambulance Driver", "Visitor", "Sick Child", "Pharmacist"]
+  },
+  {
+    "place": "Pirate Ship",
+    "roles": ["Captain", "Pirate", "Sailor", "Cook", "Prisoner", "Parrot", "Monkey", "Cabin Boy", "Treasure Hunter", "Skeleton", "Mermaid", "Ghost Pirate"]
+  },
+  {
+    "place": "Restaurant",
+    "roles": ["Chef", "Waiter", "Customer", "Manager", "Dishwasher", "Musician", "Food Critic", "Hungry Man", "Bartender", "Owner", "Pizza Maker", "Delivery Driver"]
+  },
+  {
+    "place": "Zoo",
+    "roles": ["Zookeeper", "Lion", "Monkey", "Elephant", "Penguin", "Tourist", "Vet", "Ticket Seller", "Child", "Snake", "Giraffe", "Crocodile"]
+  },
+  {
+    "place": "Space Station",
+    "roles": ["Astronaut", "Alien", "Robot", "Captain", "Scientist", "Space Tourist", "Mechanic", "Computer", "Star", "Meteor", "Space Dog", "Moon Rock"]
+  },
+  {
+    "place": "Beach",
+    "roles": ["Swimmer", "Lifeguard", "Surfer", "Shark", "Crab", "Sunbather", "Ice Cream Seller", "Child", "Fisherman", "Sandcastle Builder", "Seagull", "Boat Driver"]
+  },
+  {
+    "place": "Supermarket",
+    "roles": ["Cashier", "Customer", "Manager", "Thief", "Security Guard", "Baker", "Butcher", "Stocker", "Cleaning Lady", "Crying Baby", "Old Lady", "Fruit Seller"]
+  },
+  {
+    "place": "Cinema",
+    "roles": ["Actor", "Director", "Popcorn Seller", "Ticket Taker", "Audience Member", "Critic", "Projectionist", "Loud Talker", "Couple on Date", "Movie Star", "Cameraman", "Stuntman"]
+  },
+  {
+    "place": "Bank",
+    "roles": ["Bank Manager", "Teller", "Robber", "Police", "Rich Customer", "Guard", "Vault Cleaner", "Loan Officer", "ATM Technician", "Thief Driver", "Hostage", "Millionaire"]
+  },
+  {
+    "place": "Circus",
+    "roles": ["Clown", "Magician", "Acrobat", "Ringmaster", "Lion Tamer", "Juggler", "Strong Man", "Audience", "Popcorn Seller", "Trapeze Artist", "Elephant", "Fire Eater"]
+  },
+  {
+    "place": "Train",
+    "roles": ["Train Driver", "Conductor", "Passenger", "Ticket Inspector", "Thief", "Backpacker", "Rich Traveler", "Sleeping Passenger", "Dining Car Chef", "Station Master", "Kid on Holiday", "Dog"]
+  },
+  {
+    "place": "Hotel",
+    "roles": ["Hotel Manager", "Receptionist", "Guest", "Maid", "Bellboy", "Chef", "Pool Guy", "Celebrity", "Honeymoon Couple", "Doorman", "Room Service", "Ghost"]
+  },
+  {
+    "place": "Police Station",
+    "roles": ["Police Chief", "Detective", "Officer", "Thief in Cell", "Lawyer", "Victim", "Witness", "Secretary", "Dog", "Reporter", "Judge", "Criminal"]
+  },
+  {
+    "place": "Farm",
+    "roles": ["Farmer", "Cow", "Pig", "Sheep", "Dog", "Chicken", "Horse", "Tractor Driver", "Scarecrow", "Farmer's Wife", "Cat", "Mouse"]
+  },
+  {
+    "place": "Cruise Ship",
+    "roles": ["Captain", "Rich Passenger", "Waiter", "Singer", "Dancer", "Casino Dealer", "Seasick Passenger", "Lifeguard", "Bartender", "Photographer", "Tourist", "Titanic Survivor"]
+  },
+  {
+    "place": "Casino",
+    "roles": ["Gambler", "Dealer", "Security", "Bartender", "Rich Tycoon", "Cheater", "Waitress", "Manager", "Lucky Winner", "Loser", "Singer", "Card Shark"]
+  },
+  {
+    "place": "Museum",
+    "roles": ["Guard", "Tour Guide", "Thief", "Artist", "Statue", "Mummy", "Dinosaur Bone", "Student", "Tourist", "Janitor", "History Teacher", "Night Watchman"]
+  },
+  {
+    "place": "Gym",
+    "roles": ["Trainer", "Bodybuilder", "Yoga Teacher", "New Member", "Cleaner", "Boxer", "Runner", "Swimmer", "Front Desk", "Protein Shake Seller", "Lazy Person", "Weightlifter"]
+  },
+  {
+    "place": "Library",
+    "roles": ["Librarian", "Student", "Reader", "Loud Person", "Book Worm", "Author", "Computer User", "Janitor", "Sleeping Person", "History Professor", "Kid at Storytime", "Book Thief"]
+  },
+  {
+    "place": "Spa",
+    "roles": ["Masseuse", "Customer", "Manager", "Nail Artist", "Sauna User", "Relaxed Person", "Rich Lady", "Towel Boy", "Receptionist", "Yoga Teacher", "Cucumber Face", "Mud Bath User"]
+  },
+  {
+    "place": "Campfire",
+    "roles": ["Scout Leader", "Scout", "Bear", "Ghost Story Teller", "Marshmallow Eater", "Guitar Player", "Lost Hiker", "Forest Ranger", "Wolf", "Owl", "Scared Kid", "Fire Keeper"]
+  },
+  {
+    "place": "Soccer Stadium",
+    "roles": ["Player", "Goalie", "Referee", "Coach", "Fan", "Cheerleader", "Commentator", "Mascot", "Hot Dog Seller", "Security Guard", "Ticket Scalper", "Angry Fan"]
+  },
+  {
+    "place": "Chocolate Factory",
+    "roles": ["Factory Owner", "Oompa Loompa", "Quality Tester", "Golden Ticket Winner", "Candy Inventor", "Tour Guide", "Chocolate River Swimmer", "Squirrel Nut Sorter", "Greedy Child", "Dentist", "Blueberry Girl", "Spy from Rival Factory"]
+  },
+  {
+    "place": "Video Game World",
+    "roles": ["Player One", "NPC", "Final Boss", "Item Shop Owner", "Speedrunner", "Glitch in the System", "Healer", "Tank", "Quest Giver", "Noob", "Cheat Code User", "Game Developer"]
+  },
+  {
+    "place": "Movie Set",
+    "roles": ["Director", "Lead Actor", "Stunt Double", "Special Effects Artist", "Annoying Producer", "Extra", "Makeup Artist", "Cameraman", "Scriptwriter", "Boom Operator", "Caterer", "Costume Designer"]
+  },
+  {
+    "place": "Rock Concert",
+    "roles": ["Rockstar", "Drummer", "Bass Player", "Groupie", "Security Guard", "Sound Engineer", "Manager", "Roadie", "Crazy Fan", "Light Technician", "T-Shirt Seller", "Crowd Surfer"]
+  },
+  {
+    "place": "Wedding",
+    "roles": ["Bride", "Groom", "Best Man", "Maid of Honor", "Priest", "Crying Mother", "Drunk Uncle", "Ex-Boyfriend", "Wedding Planner", "Photographer", "DJ", "Flower Girl"]
+  },
+  {
+    "place": "Submarine",
+    "roles": ["Captain", "Sonar Operator", "Cook", "Mechanic", "Torpedo Loader", "Spy", "Doctor", "Nuclear Technician", "Navigator", "Radio Officer", "Diver", "Homesick Sailor"]
+  },
+  {
+    "place": "Amusement Park",
+    "roles": ["Rollercoaster Operator", "Mascot", "Vomiting Kid", "Cotton Candy Seller", "Ticket Taker", "Lost Child", "Mechanic", "Haunted House Actor", "Line Cutter", "Prize Winner", "Balloon Seller", "Pickpocket"]
+  },
+  {
+    "place": "Construction Site",
+    "roles": ["Crane Operator", "Architect", "Lazy Worker", "Safety Inspector", "Foreman", "Electrician", "Plumber", "Lunch Truck Driver", "Concrete Mixer", "Blueprint Reader", "Traffic Controller", "Bird"]
+  },
+  {
+    "place": "Fashion Show",
+    "roles": ["Supermodel", "Designer", "Photographer", "Fashion Critic", "Makeup Artist", "Hairdresser", "Wardrobe Malfunction", "Catwalk Security", "Celebrity Guest", "Backstage Manager", "Nervous Model", "Cameraman"]
+  },
+  {
+    "place": "Mars Colony",
+    "roles": ["Colony Commander", "Botanist", "Martian", "Robot Rover", "Oxygen Technician", "Space Farmer", "Billionaire Founder", "Alien Pet", "Homesick Astronaut", "Water Miner", "Communication Officer", "Space Tourist"]
+  },
+  {
+    "place": "Wrestling Ring",
+    "roles": ["Pro Wrestler", "Referee", "Announcer", "Folding Chair Guy", "Masked Luchador", "Manager", "Ring Girl", "Angry Fan", "Commentator", "Medic", "Champion", "Heel"]
+  },
+  {
+    "place": "Zombie Apocalypse",
+    "roles": ["Survivor Leader", "Zombie", "Medic", "Guy Hiding Bite", "Scavenger", "Crazy Prepper", "Child", "Hero with Shotgun", "Scientist", "Military Guard", "Looter", "Infected Dog"]
+  },
+  {
+    "place": "Cat Show",
+    "roles": ["Crazy Cat Lady", "Judge", "Cat Groomer", "The Fat Cat", "Allergic Spectator", "Persian Cat", "Hairless Cat", "Cat Toy Seller", "Photographer", "Veterinarian", "Cat Whisperer", "Mouse"]
+  },
+  {
+    "place": "Time Machine",
+    "roles": ["Time Traveler", "Mad Scientist", "Dinosaur", "Caveman", "Robot from Future", "Historical Figure", "Time Cop", "Paradox", "Assistant", "Lost Tourist", "Butterfly", "Knight"]
+  },
+  {
+    "place": "Yoga Retreat",
+    "roles": ["Yoga Guru", "Stressed City Person", "Vegan Chef", "Flexible Person", "Skeptic", "Meditation Teacher", "Massage Therapist", "Chanting Student", "Dog Doing Yoga", "Influencer", "Hippie", "Silent Monk"]
+  },
+  {
+    "place": "Prison",
+    "roles": ["Warden", "Guard", "Innocent Man", "Gang Leader", "Rat", "Cook", "Escape Artist", "Lawyer", "Visitor", "Smuggler", "Tattoo Artist", "New Fish"]
+  },
+  {
+    "place": "Beauty Pageant",
+    "roles": ["Miss Universe", "Judge", "Stage Mom", "Host", "Crying Runner-Up", "Talent Scout", "Sash Maker", "Crown Polisher", "Jealous Contestant", "Choreographer", "Spray Tan Expert", "Tiara Thief"]
+  },
+  {
+    "place": "Retirement Home",
+    "roles": ["Grumpy Grandpa", "Nurse", "Bingo Caller", "War Veteran", "Grandma with Cookies", "Visitng Grandchild", "Doctor", "Physical Therapist", "Chef", "Gardener", "Old Romance", "Ghost"]
+  }
+]

@@ -1,4 +1,5 @@
 import { SessionState, SessionCode, PlayerId } from '../types';
+import { clearSessionWordHistory } from './words';
 
 // Session expiration time: 12 hours in milliseconds
 const SESSION_EXPIRATION_MS = 12 * 60 * 60 * 1000;
@@ -57,6 +58,8 @@ class GameStore {
       if (session.timers.vote) clearTimeout(session.timers.vote);
       if (session.timers.whiteGuess) clearTimeout(session.timers.whiteGuess);
       session.timers.disconnectGrace?.forEach(timer => clearTimeout(timer));
+      // Clean up word/place history
+      clearSessionWordHistory(code);
       this.sessions.delete(code);
     }
   }

@@ -1,6 +1,6 @@
 import { SessionState, GamePhase, PlayerId, Player, PrivateRole, GameEndResult, Scoreboard, PlayerScore } from '../types';
 import { gameStore, SessionStore } from './store';
-import { selectSecretWord, isCorrectGuess } from './words';
+import { selectSecretWord, isCorrectGuess, selectRandomPlace, assignRolesToPlayers, clearSessionWordHistory } from './words';
 
 export class GameEngine {
   private io: any;
@@ -14,7 +14,7 @@ export class GameEngine {
     if (!session || session.state.phase !== 'lobby') return;
 
     const { state } = session;
-    
+
     // Validate minimum players
     if (state.players.length < 4) {
       this.emitError(sessionCode, 'Need at least 4 players to start');
@@ -25,37 +25,80 @@ export class GameEngine {
     state.phase = 'dealing';
     this.emitToRoom(sessionCode, 'session/state', this.sanitizeStateFor(null, state));
 
-    // Select secret word and assign White
-    state.secretWord = selectSecretWord(state.secretWordCategory);
+    // Select White player
     const whiteIndex = Math.floor(Math.random() * state.players.length);
     state.whitePlayerId = state.players[whiteIndex].id;
-    
+
     // Update player white status
     state.players.forEach((player, index) => {
       player.isWhite = index === whiteIndex;
     });
 
-    // Choose starting player (non-White)
-    const nonWhitePlayers = state.players.filter(p => !p.isWhite);
-    const startingPlayer = nonWhitePlayers[Math.floor(Math.random() * nonWhitePlayers.length)];
-    const startingIndex = state.players.findIndex(p => p.id === startingPlayer.id);
+    if (state.gameMode === 'places_roles') {
+      // Places + Roles mode
+      const placeData = selectRandomPlace(sessionCode);
+      state.secretPlace = placeData.place;
+      state.secretWord = placeData.place; // Use place as the "secret" for guessing
+      state.playerRoles = assignRolesToPlayers(
+        placeData,
+        state.players.map(p => p.id),
+        state.whitePlayerId
+      );
 
-    // Initialize round
-    state.round = {
-      roundNumber: 1,
-      startingPlayerId: startingPlayer.id,
-      currentTurnIndex: startingIndex,
-      turnsCompleted: 0
-    };
+      // In places_roles mode, White cannot be the SECOND player (first to be questioned)
+      // First player asks, second player answers first - so White can't be second
+      const nonWhitePlayers = state.players.filter(p => !p.isWhite);
+      const startingPlayer = nonWhitePlayers[Math.floor(Math.random() * nonWhitePlayers.length)];
+      const startingIndex = state.players.findIndex(p => p.id === startingPlayer.id);
 
-    // Send private roles
-    state.players.forEach(player => {
-      const role: PrivateRole = player.isWhite 
-        ? { role: 'white' }
-        : { role: 'word', word: state.secretWord! };
-      
-      this.emitToPlayer(sessionCode, player.id, 'game/dealt_private', role);
-    });
+      // Initialize round
+      state.round = {
+        roundNumber: 1,
+        startingPlayerId: startingPlayer.id,
+        currentTurnIndex: startingIndex,
+        turnsCompleted: 0
+      };
+
+      // Send private roles with place and role
+      state.players.forEach(player => {
+        const role: PrivateRole = player.isWhite
+          ? { role: 'white' }
+          : {
+              role: 'place_role',
+              place: state.secretPlace!,
+              playerRole: state.playerRoles![player.id]
+            };
+
+        this.emitToPlayer(sessionCode, player.id, 'game/dealt_private', role);
+      });
+    } else {
+      // Classic word mode
+      state.secretWord = selectSecretWord(sessionCode);
+      state.secretPlace = null;
+      state.playerRoles = null;
+
+      // Choose starting player (non-White)
+      const nonWhitePlayers = state.players.filter(p => !p.isWhite);
+      const startingPlayer = nonWhitePlayers[Math.floor(Math.random() * nonWhitePlayers.length)];
+      const startingIndex = state.players.findIndex(p => p.id === startingPlayer.id);
+
+      // Initialize round
+      state.round = {
+        roundNumber: 1,
+        startingPlayerId: startingPlayer.id,
+        currentTurnIndex: startingIndex,
+        turnsCompleted: 0
+      };
+
+      // Send private roles
+      state.players.forEach(player => {
+        const role: PrivateRole = player.isWhite
+          ? { role: 'white' }
+          : { role: 'word', word: state.secretWord! };
+
+        this.emitToPlayer(sessionCode, player.id, 'game/dealt_private', role);
+      });
+    }
 
     // Transition to round play
     state.phase = 'round_play';
@@ -63,7 +106,7 @@ export class GameEngine {
 
     this.emitToRoom(sessionCode, 'session/state', this.sanitizeStateFor(null, state));
     this.emitToRoom(sessionCode, 'turn/started', {
-      playerId: startingPlayer.id,
+      playerId: state.round!.startingPlayerId,
       roundNumber: 1,
       turnNumber: 1
     });
@@ -361,7 +404,10 @@ export class GameEngine {
       whitePlayerId: state.whitePlayerId!,
       secretWord: state.secretWord!,
       winner,
-      whiteGuess
+      whiteGuess,
+      // Include places_roles specific data
+      secretPlace: state.secretPlace || undefined,
+      playerRoles: state.playerRoles || undefined
     };
 
     gameStore.updateState(sessionCode, state);
@@ -416,9 +462,11 @@ export class GameEngine {
 
     const { state } = session;
 
-    // Reset game state but keep players and scoreboard
+    // Reset game state but keep players, scoreboard, and game mode
     state.phase = 'lobby';
     state.secretWord = null;
+    state.secretPlace = null;
+    state.playerRoles = null;
     state.whitePlayerId = null;
     state.round = null;
     state.vote = null;
@@ -481,7 +529,9 @@ export class GameEngine {
   private sanitizeStateFor(playerId: PlayerId | null, state: SessionState): SessionState {
     return {
       ...state,
-      secretWord: null // Never include secret word in state broadcasts
+      secretWord: null, // Never include secret word in state broadcasts
+      secretPlace: null, // Never include secret place in state broadcasts
+      playerRoles: null // Never include player roles in state broadcasts
     };
   }
 

@@ -1,0 +1,22 @@
+[
+  {
+    "place": "Santa's Workshop",
+    "roles": ["Santa Claus", "Mrs. Claus", "Head Elf", "Toy Maker", "Reindeer Trainer", "Gift Wrapper", "The Grinch", "Sleigh Mechanic", "Letter Reader", "Coal Sorter", "Snowman", "Stable Hand"]
+  },
+  {
+    "place": "North Pole Research Station",
+    "roles": ["Polar Explorer", "Climate Scientist", "Penguin Whisperer", "Supply Pilot", "Lost Tourist", "Ice Core Driller", "Polar Bear Photographer", "Radio Operator", "Cook", "Medic", "Aurora Watcher", "Husky Sled Driver"]
+  },
+  {
+    "place": "Christmas Market",
+    "roles": ["Glühwein Seller", "Gingerbread Baker", "Ornament Seller", "Carol Singer", "Pickpocket", "Santa for Hire", "Tourist", "Bratwurst Griller", "Nutcracker", "Lost Child", "Snow Sweeper", "Candle Maker"]
+  },
+  {
+    "place": "Reindeer Stable",
+    "roles": ["Rudolph", "Dasher", "Stable Boy", "Vet", "Flying Coach", "Carrot Feeder", "Sleigh Polisher", "Harness Maker", "Santa", "Elf Helper", "Hay Stacker", "Poop Scooper"]
+  },
+  {
+    "place": "Gingerbread House",
+    "roles": ["Witch", "Hansel", "Gretel", "Cookie Baker", "Candy Architect", "Hungry Bird", "Lost Hiker", "Sugar Fairy", "Icing Decorator", "Gummy Bear Guard", "Chocolate Door Fixer", "Woodcutter"]
+  }
+]

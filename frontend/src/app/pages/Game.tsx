@@ -102,12 +102,23 @@ export function Game() {
     )
   }
 
-  const currentPlayer = session.round 
+  const currentPlayer = session.round
     ? session.players[session.round.currentTurnIndex]
     : null
   const isMyTurn = currentPlayer?.id === me.playerId
   const isHost = me.playerId === session.hostPlayerId
   const amIWhite = me.role?.role === 'white'
+
+  // For Places + Roles mode: find the previous player (who asks the question)
+  const getPreviousPlayer = () => {
+    if (!session.round) return null
+    const activePlayers = session.players.filter(p => !p.isEliminated)
+    const currentIndex = activePlayers.findIndex(p => p.id === currentPlayer?.id)
+    if (currentIndex === -1) return null
+    const prevIndex = currentIndex === 0 ? activePlayers.length - 1 : currentIndex - 1
+    return activePlayers[prevIndex]
+  }
+  const previousPlayer = getPreviousPlayer()
 
   const getPhaseDisplay = () => {
     switch (session.phase) {
@@ -172,9 +183,12 @@ export function Game() {
 
         {/* Secret Word Card - Prominent Display */}
         <div className="mb-6">
-          <SecretWordCard 
-            isWhite={amIWhite} 
-            secretWord={me.role?.word} 
+          <SecretWordCard
+            isWhite={amIWhite}
+            secretWord={me.role?.word}
+            gameMode={session.gameMode}
+            place={me.role?.place}
+            playerRole={me.role?.playerRole}
           />
         </div>
 
@@ -195,20 +209,30 @@ export function Game() {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {session.players.map((player) => {
                 const isCurrentTurn = currentPlayer?.id === player.id
+                const isAsker = previousPlayer?.id === player.id && session.gameMode === 'places_roles'
                 const hasVoted = session.vote && player.id in session.vote.votes
-                
+                const isPlacesMode = session.gameMode === 'places_roles'
+
+                // Determine border/bg colors
+                let borderClass = 'border-green-500/20 bg-green-500/5' // default connected
+                if (player.isEliminated) {
+                  borderClass = 'border-gray-500/20 bg-gray-500/5 opacity-60'
+                } else if (!player.isConnected) {
+                  borderClass = 'border-red-500/20 bg-red-500/5'
+                } else if (isPlacesMode && session.phase === 'round_play') {
+                  if (isCurrentTurn) {
+                    borderClass = 'border-purple-500 bg-purple-500/20 ring-2 ring-purple-500/50'
+                  } else if (isAsker) {
+                    borderClass = 'border-cyan-500 bg-cyan-500/20 ring-2 ring-cyan-500/50'
+                  }
+                } else if (isCurrentTurn) {
+                  borderClass = 'border-primary bg-primary/10 animate-pulse-glow'
+                }
+
                 return (
                   <div
                     key={player.id}
-                    className={`p-4 rounded-lg border transition-all ${
-                      player.isEliminated
-                        ? 'border-gray-500/20 bg-gray-500/5 opacity-60'
-                        : isCurrentTurn 
-                          ? 'border-primary bg-primary/10 animate-pulse-glow' 
-                          : player.isConnected
-                            ? 'border-green-500/20 bg-green-500/5'
-                            : 'border-red-500/20 bg-red-500/5'
-                    }`}
+                    className={`p-4 rounded-lg border transition-all ${borderClass}`}
                   >
                     <div className="flex flex-col items-center gap-2">
                       <div className="relative">
@@ -224,15 +248,34 @@ export function Game() {
                           <Vote className="h-4 w-4 text-green-400 absolute -bottom-1 -right-1" />
                         )}
                       </div>
-                      
+
                       <div className="text-center">
                         <p className="font-medium truncate max-w-full text-sm">
                           {player.name}
                         </p>
-                        {isCurrentTurn && session.phase === 'round_play' && !player.isEliminated && (
-                          <Badge variant="outline" className="text-xs mt-1">
-                            Speaking
-                          </Badge>
+                        {session.phase === 'round_play' && !player.isEliminated && (
+                          <>
+                            {isPlacesMode ? (
+                              <>
+                                {isAsker && (
+                                  <Badge className="text-xs mt-1 bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                                    Asking
+                                  </Badge>
+                                )}
+                                {isCurrentTurn && (
+                                  <Badge className="text-xs mt-1 bg-purple-500/20 text-purple-400 border-purple-500/30">
+                                    Answering
+                                  </Badge>
+                                )}
+                              </>
+                            ) : (
+                              isCurrentTurn && (
+                                <Badge variant="outline" className="text-xs mt-1">
+                                  Speaking
+                                </Badge>
+                              )
+                            )}
+                          </>
                         )}
                         {player.isEliminated && (
                           <Badge variant="destructive" className="text-xs mt-1">
@@ -262,32 +305,108 @@ export function Game() {
             <CardContent>
               {session.phase === 'round_play' && (
                 <div className="space-y-4">
-                  {isMyTurn ? (
-                    <div className="text-center space-y-4">
-                      <p className="text-lg">It's your turn to speak!</p>
-                      <p className="text-sm text-muted-foreground">
-                        Give a clue about the word without saying it directly.
-                      </p>
-                      <Button onClick={handleConfirmSpoken} size="lg" className="w-full">
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        I've Spoken
-                      </Button>
-                    </div>
-                  ) : currentPlayer ? (
-                    <div className="text-center space-y-2">
-                      <p className="text-lg">
-                        <span className="font-bold">{currentPlayer.name}</span> is speaking
-                      </p>
-                      <div className="flex items-center justify-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-lg">
-                            {currentPlayer.emoji}
-                          </AvatarFallback>
-                        </Avatar>
+                  {session.gameMode === 'places_roles' ? (
+                    // Places + Roles mode: show asker and answerer
+                    isMyTurn ? (
+                      <div className="text-center space-y-4">
+                        {previousPlayer && (
+                          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-sm">{previousPlayer.emoji}</AvatarFallback>
+                            </Avatar>
+                            <span><span className="font-medium text-cyan-400">{previousPlayer.name}</span> is asking you a question</span>
+                          </div>
+                        )}
+                        <p className="text-lg font-bold text-purple-400">Answer in character!</p>
+                        <p className="text-sm text-muted-foreground">
+                          Stay in your role and answer their question. Then ask the next player!
+                        </p>
+                        <Button onClick={handleConfirmSpoken} size="lg" className="w-full bg-purple-500 hover:bg-purple-600">
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          I've Answered
+                        </Button>
                       </div>
-                    </div>
+                    ) : previousPlayer?.id === me.playerId && currentPlayer ? (
+                      // I am the one asking
+                      <div className="text-center space-y-4">
+                        <div className="flex items-center justify-center gap-3">
+                          <div className="flex flex-col items-center">
+                            <Avatar className="h-10 w-10 ring-2 ring-cyan-500/50">
+                              <AvatarFallback className="text-lg">{previousPlayer.emoji}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs text-cyan-400 mt-1">You</span>
+                          </div>
+                          <span className="text-2xl">→</span>
+                          <div className="flex flex-col items-center">
+                            <Avatar className="h-10 w-10 ring-2 ring-purple-500/50 animate-pulse">
+                              <AvatarFallback className="text-lg">{currentPlayer.emoji}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs text-purple-400 mt-1">Answering</span>
+                          </div>
+                        </div>
+                        <p className="text-lg font-bold text-cyan-400">Ask {currentPlayer.name} a question!</p>
+                        <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3">
+                          <p className="text-xs text-cyan-400/70 mb-2">Example questions:</p>
+                          <div className="flex flex-wrap gap-2 justify-center text-xs">
+                            <span className="px-2 py-1 bg-cyan-500/20 rounded-full text-cyan-300">"How did you get here?"</span>
+                            <span className="px-2 py-1 bg-cyan-500/20 rounded-full text-cyan-300">"What are you wearing?"</span>
+                            <span className="px-2 py-1 bg-cyan-500/20 rounded-full text-cyan-300">"What's your favorite part?"</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : currentPlayer && previousPlayer ? (
+                      <div className="text-center space-y-3">
+                        <div className="flex items-center justify-center gap-3">
+                          <div className="flex flex-col items-center">
+                            <Avatar className="h-10 w-10 ring-2 ring-cyan-500/50">
+                              <AvatarFallback className="text-lg">{previousPlayer.emoji}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs text-cyan-400 mt-1">Asking</span>
+                          </div>
+                          <span className="text-2xl">→</span>
+                          <div className="flex flex-col items-center">
+                            <Avatar className="h-10 w-10 ring-2 ring-purple-500/50 animate-pulse">
+                              <AvatarFallback className="text-lg">{currentPlayer.emoji}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs text-purple-400 mt-1">Answering</span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          <span className="font-medium text-cyan-400">{previousPlayer.name}</span> asks <span className="font-medium text-purple-400">{currentPlayer.name}</span>
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-center text-muted-foreground">Waiting for round to start...</p>
+                    )
                   ) : (
-                    <p className="text-center text-muted-foreground">Waiting for round to start...</p>
+                    // Classic word mode
+                    isMyTurn ? (
+                      <div className="text-center space-y-4">
+                        <p className="text-lg">It's your turn!</p>
+                        <p className="text-sm text-muted-foreground">
+                          Give a clue about the word without saying it directly.
+                        </p>
+                        <Button onClick={handleConfirmSpoken} size="lg" className="w-full">
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          I've Spoken
+                        </Button>
+                      </div>
+                    ) : currentPlayer ? (
+                      <div className="text-center space-y-2">
+                        <p className="text-lg">
+                          <span className="font-bold">{currentPlayer.name}</span> is speaking
+                        </p>
+                        <div className="flex items-center justify-center gap-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="text-lg">
+                              {currentPlayer.emoji}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-center text-muted-foreground">Waiting for round to start...</p>
+                    )
                   )}
                 </div>
               )}
@@ -383,17 +502,19 @@ export function Game() {
                     <div className="space-y-4">
                       <p className="text-center text-lg">You've been caught!</p>
                       <p className="text-center text-sm text-muted-foreground">
-                        Enter your guess for the secret word:
+                        {session.gameMode === 'places_roles'
+                          ? "Enter your guess for the secret location:"
+                          : "Enter your guess for the secret word:"}
                       </p>
                       <div className="flex gap-2">
                         <Input
-                          placeholder="Your guess..."
+                          placeholder={session.gameMode === 'places_roles' ? "The location is..." : "Your guess..."}
                           value={whiteGuess}
                           onChange={(e) => setWhiteGuess(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSubmitGuess()}
                           disabled={!session.whiteGuess || Date.now() > session.whiteGuess.guessEndsAt}
                         />
-                        <Button 
+                        <Button
                           onClick={handleSubmitGuess}
                           disabled={!whiteGuess.trim() || !session.whiteGuess || Date.now() > session.whiteGuess.guessEndsAt}
                         >
@@ -430,8 +551,12 @@ export function Game() {
                   <p className="font-bold">{session.players.length}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Category</p>
-                  <p className="font-bold capitalize">{session.secretWordCategory}</p>
+                  <p className="text-muted-foreground">
+                    {session.gameMode === 'places_roles' ? 'Mode' : 'Category'}
+                  </p>
+                  <p className="font-bold capitalize">
+                    {session.gameMode === 'places_roles' ? 'Places + Roles' : session.secretWordCategory}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Phase</p>

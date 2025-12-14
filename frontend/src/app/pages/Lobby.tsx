@@ -1,21 +1,24 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Copy, Users, Play, Crown, Palette, Check, Loader2 } from 'lucide-react'
+import { Copy, Users, Play, Crown, Palette, Check, Loader2, HelpCircle, MapPin, MessageSquare } from 'lucide-react'
 import { useSessionStore, getStoredSession } from '@/lib/session-store'
 import { apiClient } from '@/lib/api'
-import { formatSessionCode } from '@/lib/utils'
+import { formatSessionCode, cn } from '@/lib/utils'
 import { toast } from '@/lib/use-toast'
 import { EmojiSelector } from '@/components/game/EmojiSelector'
+import { GameIntroCarousel } from '@/components/game/GameIntroCarousel'
+import { GameMode } from '@/types'
 
 export function Lobby() {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
   const { session, me, setMe, connect, isConnected } = useSessionStore()
+  const [showHowToPlay, setShowHowToPlay] = useState(false)
 
   const startGameMutation = useMutation({
     mutationFn: () => apiClient.startGame(code!, me.token!),
@@ -47,6 +50,23 @@ export function Lobby() {
     onError: (error) => {
       toast({
         title: "Couldn't update ready status",
+        description: error.message,
+        variant: "destructive"
+      })
+    }
+  })
+
+  const updateGameModeMutation = useMutation({
+    mutationFn: (gameMode: GameMode) => apiClient.updateGameMode(code!, me.token!, gameMode),
+    onSuccess: (data) => {
+      toast({
+        title: "Game mode updated!",
+        description: data.gameMode === 'places_roles' ? "Playing Places + Roles" : "Playing Classic Word Mode"
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: "Couldn't change game mode",
         description: error.message,
         variant: "destructive"
       })
@@ -112,6 +132,14 @@ export function Lobby() {
   return (
     <div className="min-h-screen p-4">
       <div className="max-w-4xl mx-auto">
+        {/* How to Play Modal */}
+        {showHowToPlay && (
+          <GameIntroCarousel
+            onClose={() => setShowHowToPlay(false)}
+            gameMode={session.gameMode}
+          />
+        )}
+
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -128,7 +156,22 @@ export function Lobby() {
               <Copy className="h-4 w-4" />
             </Button>
           </div>
-          
+
+          {/* Game Mode Badge */}
+          <div className="flex justify-center mb-4">
+            {session.gameMode === 'places_roles' ? (
+              <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 px-3 py-1 gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />
+                Places + Roles Mode
+              </Badge>
+            ) : (
+              <Badge className="bg-primary/20 text-primary border-primary/30 px-3 py-1 gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5" />
+                Classic Word Mode
+              </Badge>
+            )}
+          </div>
+
           <div className="flex items-center justify-center gap-4 text-muted-foreground text-sm">
             <div className="flex items-center gap-1.5">
               <Users className="h-4 w-4" />
@@ -259,11 +302,88 @@ export function Lobby() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/20">
+                {/* Game Mode Selector */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Game Mode</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateGameModeMutation.mutate('word')}
+                      disabled={updateGameModeMutation.isPending}
+                      className={cn(
+                        "relative p-3 rounded-lg border-2 transition-all duration-200",
+                        "hover:border-primary/50 hover:bg-primary/5",
+                        "disabled:opacity-50 disabled:cursor-not-allowed",
+                        session.gameMode === 'word'
+                          ? "border-primary bg-primary/10 shadow-lg shadow-primary/20"
+                          : "border-muted bg-muted/10"
+                      )}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <div className={cn(
+                          "p-2 rounded-full",
+                          session.gameMode === 'word' ? "bg-primary/20" : "bg-muted/30"
+                        )}>
+                          <MessageSquare className={cn(
+                            "h-5 w-5",
+                            session.gameMode === 'word' ? "text-primary" : "text-muted-foreground"
+                          )} />
+                        </div>
+                        <div>
+                          <p className={cn(
+                            "font-semibold text-sm",
+                            session.gameMode === 'word' ? "text-primary" : "text-foreground"
+                          )}>Classic</p>
+                          <p className="text-xs text-muted-foreground">Secret Word</p>
+                        </div>
+                      </div>
+                      {session.gameMode === 'word' && (
+                        <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => updateGameModeMutation.mutate('places_roles')}
+                      disabled={updateGameModeMutation.isPending}
+                      className={cn(
+                        "relative p-3 rounded-lg border-2 transition-all duration-200",
+                        "hover:border-purple-500/50 hover:bg-purple-500/5",
+                        "disabled:opacity-50 disabled:cursor-not-allowed",
+                        session.gameMode === 'places_roles'
+                          ? "border-purple-500 bg-purple-500/10 shadow-lg shadow-purple-500/20"
+                          : "border-muted bg-muted/10"
+                      )}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <div className={cn(
+                          "p-2 rounded-full",
+                          session.gameMode === 'places_roles' ? "bg-purple-500/20" : "bg-muted/30"
+                        )}>
+                          <MapPin className={cn(
+                            "h-5 w-5",
+                            session.gameMode === 'places_roles' ? "text-purple-400" : "text-muted-foreground"
+                          )} />
+                        </div>
+                        <div>
+                          <p className={cn(
+                            "font-semibold text-sm",
+                            session.gameMode === 'places_roles' ? "text-purple-400" : "text-foreground"
+                          )}>Places + Roles</p>
+                          <p className="text-xs text-muted-foreground">Location Game</p>
+                        </div>
+                      </div>
+                      {session.gameMode === 'places_roles' && (
+                        <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Game Settings */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
                   <div>
-                    <p className="font-medium">Game Settings</p>
                     <p className="text-sm text-muted-foreground">
-                      Category: {session.secretWordCategory} •
                       Vote Time: {session.settings.voteSeconds}s •
                       Guess Time: {session.settings.whiteGuessSeconds}s
                     </p>
@@ -299,16 +419,39 @@ export function Lobby() {
 
         {/* Instructions */}
         <Card className="game-card mt-6">
-          <CardHeader>
-            <CardTitle>How to Play</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <HelpCircle className="h-5 w-5" />
+              How to Play
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowHowToPlay(true)}
+              className="gap-1.5"
+            >
+              <HelpCircle className="h-4 w-4" />
+              View Tutorial
+            </Button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>• Everyone gets the same secret word except one player (Mr/Ms White)</p>
-              <p>• Take turns giving clues about the word without saying it</p>
-              <p>• After everyone speaks, vote for who you think is Mr/Ms White</p>
-              <p>• If White is caught, they get one chance to guess the word!</p>
-            </div>
+            {session.gameMode === 'places_roles' ? (
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>• Everyone is at the same secret location with unique roles</p>
+                <p>• One player (Mr/Ms White) doesn't know the place or their role</p>
+                <p>• Take turns asking questions: "How did you get here?", "What are you doing?"</p>
+                <p>• Answer in character based on your role and location</p>
+                <p>• Vote for who you think is Mr/Ms White - they must blend in!</p>
+                <p>• If White is caught, they get one chance to guess the location!</p>
+              </div>
+            ) : (
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>• Everyone gets the same secret word except one player (Mr/Ms White)</p>
+                <p>• Take turns giving clues about the word without saying it</p>
+                <p>• After everyone speaks, vote for who you think is Mr/Ms White</p>
+                <p>• If White is caught, they get one chance to guess the word!</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
