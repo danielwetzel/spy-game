@@ -3,6 +3,56 @@ import { SessionState, PlayerId, PrivateRole, GameEndResult } from '@/types'
 import { socketManager } from './socket'
 import { toast } from './use-toast'
 
+// Session expiration time: 12 hours in milliseconds
+const SESSION_EXPIRATION_MS = 12 * 60 * 60 * 1000;
+
+// Helper function to check if stored session is expired
+export function isSessionExpired(): boolean {
+  try {
+    const savedSession = localStorage.getItem('spyhunt_session');
+    if (!savedSession) return true;
+
+    const sessionData = JSON.parse(savedSession);
+    if (!sessionData.createdAt) return true;
+
+    const age = Date.now() - sessionData.createdAt;
+    return age > SESSION_EXPIRATION_MS;
+  } catch {
+    return true;
+  }
+}
+
+// Helper function to get stored session data if valid
+export function getStoredSession(): {
+  playerId: string;
+  token: string;
+  name: string;
+  emoji: string;
+} | null {
+  if (isSessionExpired()) {
+    localStorage.removeItem('spyhunt_session');
+    return null;
+  }
+
+  try {
+    const savedSession = localStorage.getItem('spyhunt_session');
+    if (!savedSession) return null;
+
+    const sessionData = JSON.parse(savedSession);
+    if (!sessionData.playerId || !sessionData.token) return null;
+
+    return {
+      playerId: sessionData.playerId,
+      token: sessionData.token,
+      name: sessionData.name || '',
+      emoji: sessionData.emoji || '',
+    };
+  } catch {
+    localStorage.removeItem('spyhunt_session');
+    return null;
+  }
+}
+
 interface SessionStore {
   // State
   session: SessionState | null
@@ -67,9 +117,26 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   
   setGameResult: (result) => set({ gameResult: result }),
   
-  setMe: (me) => set((state) => ({ 
-    me: { ...state.me, ...me } 
-  })),
+  setMe: (me) => set((state) => {
+    const newMe = { ...state.me, ...me }
+    // Update localStorage with latest session data
+    const savedSession = localStorage.getItem('spyhunt_session')
+    if (savedSession || (me.playerId && me.token)) {
+      try {
+        const sessionData = savedSession ? JSON.parse(savedSession) : {}
+        const updatedSession = {
+          ...sessionData,
+          ...me,
+          // Add timestamp when first creating the session
+          createdAt: sessionData.createdAt || Date.now()
+        }
+        localStorage.setItem('spyhunt_session', JSON.stringify(updatedSession))
+      } catch (error) {
+        console.error('Failed to update session storage:', error)
+      }
+    }
+    return { me: newMe }
+  }),
   
   setRole: (role) => set((state) => ({
     me: { ...state.me, role }
@@ -103,7 +170,16 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   connect: (code, token) => {
     const socket = socketManager.connect()
-    
+
+    // Only set up event handlers once to prevent duplicate listeners
+    if (socketManager.hasListeners()) {
+      // Already set up, just join the session
+      socketManager.joinSession(code, token)
+      return
+    }
+
+    socketManager.markListenersSetup()
+
     socket.on('session/state', (state: SessionState) => {
       get().setSession(state)
     })
@@ -222,8 +298,18 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       get().setConnected(false)
     })
     
-    socket.on('error', (error) => {
+    socket.on('error', (error: { code: number; message: string }) => {
       console.error('Socket error:', error)
+
+      // If session not found or invalid token, clear session and disconnect
+      if (error.code === 404 || error.code === 401) {
+        console.log('Session invalid, clearing stored session')
+        localStorage.removeItem('spyhunt_session')
+        socketManager.disconnect()
+        get().reset()
+        // Redirect to home - we use window.location since we can't use navigate here
+        window.location.href = '/'
+      }
     })
     
     socketManager.joinSession(code, token)
@@ -262,18 +348,21 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
-  reset: () => set({
-    session: null,
-    gameResult: null,
-    me: {
-      playerId: null,
-      token: null,
-      role: null,
-      name: null,
-      emoji: null,
-    },
-    isConnected: false,
-    elimination: null,
-    votingResult: null,
-  }),
+  reset: () => {
+    localStorage.removeItem('spyhunt_session')
+    set({
+      session: null,
+      gameResult: null,
+      me: {
+        playerId: null,
+        token: null,
+        role: null,
+        name: null,
+        emoji: null,
+      },
+      isConnected: false,
+      elimination: null,
+      votingResult: null,
+    })
+  },
 }))

@@ -1,4 +1,4 @@
-import { SessionState, GamePhase, PlayerId, Player, PrivateRole, GameEndResult } from '../types';
+import { SessionState, GamePhase, PlayerId, Player, PrivateRole, GameEndResult, Scoreboard, PlayerScore } from '../types';
 import { gameStore, SessionStore } from './store';
 import { selectSecretWord, isCorrectGuess } from './words';
 
@@ -151,6 +151,9 @@ export class GameEngine {
     state.vote.votes[voterId] = targetId;
     gameStore.updateState(sessionCode, state);
 
+    // Broadcast vote update so all players can see who has voted
+    this.emitToRoom(sessionCode, 'session/state', this.sanitizeStateFor(null, state));
+
     // Check if all active players have voted
     const activePlayers = state.players.filter(p => !p.isEliminated);
     const allVoted = activePlayers.every(p => p.id in state.vote!.votes);
@@ -275,8 +278,15 @@ export class GameEngine {
       // White was eliminated, others win
       this.endGame(sessionCode, 'others');
     } else {
-      // Continue to next round
-      this.startNextRound(sessionCode);
+      // Check if only 1 non-White player remains (2 total with White)
+      const activeNonWhitePlayers = state.players.filter(p => !p.isEliminated && !p.isWhite);
+      if (activeNonWhitePlayers.length <= 1) {
+        // Only 1 or 0 non-White players remain - White wins (voting deadlock)
+        this.endGame(sessionCode, 'white');
+      } else {
+        // Continue to next round
+        this.startNextRound(sessionCode);
+      }
     }
   }
 
@@ -344,6 +354,9 @@ export class GameEngine {
     const { state } = session;
     state.phase = 'ended';
 
+    // Update scoreboard
+    this.updateScoreboard(state, winner);
+
     const result: GameEndResult = {
       whitePlayerId: state.whitePlayerId!,
       secretWord: state.secretWord!,
@@ -354,6 +367,83 @@ export class GameEngine {
     gameStore.updateState(sessionCode, state);
 
     this.emitToRoom(sessionCode, 'game/ended', result);
+    this.emitToRoom(sessionCode, 'session/state', this.sanitizeStateFor(null, state));
+  }
+
+  private updateScoreboard(state: SessionState, winner: 'white' | 'others'): void {
+    if (!state.scoreboard) {
+      state.scoreboard = {
+        scores: {},
+        gamesPlayed: 0
+      };
+    }
+
+    state.scoreboard.gamesPlayed++;
+
+    for (const player of state.players) {
+      // Use player name as the key so scores persist across rejoins
+      if (!state.scoreboard.scores[player.name]) {
+        state.scoreboard.scores[player.name] = {
+          playerName: player.name,
+          gamesPlayed: 0,
+          score: 0,
+          whiteWins: 0,
+          wordBearerWins: 0
+        };
+      }
+
+      const playerScore = state.scoreboard.scores[player.name];
+      playerScore.gamesPlayed++;
+
+      const isWhite = player.id === state.whitePlayerId;
+      const didWin = (isWhite && winner === 'white') || (!isWhite && winner === 'others');
+
+      if (didWin) {
+        if (isWhite) {
+          playerScore.whiteWins++;
+          playerScore.score += 3; // White wins = +3 points
+        } else {
+          playerScore.wordBearerWins++;
+          playerScore.score += 1; // Word bearer wins = +1 point
+        }
+      }
+    }
+  }
+
+  restartGame(sessionCode: string): void {
+    const session = gameStore.getSession(sessionCode);
+    if (!session || session.state.phase !== 'ended') return;
+
+    const { state } = session;
+
+    // Reset game state but keep players and scoreboard
+    state.phase = 'lobby';
+    state.secretWord = null;
+    state.whitePlayerId = null;
+    state.round = null;
+    state.vote = null;
+    state.whiteGuess = null;
+
+    // Reset player states
+    state.players.forEach(player => {
+      player.isWhite = false;
+      player.isEliminated = false;
+      player.isReady = false;
+    });
+
+    // Clear any active timers
+    if (session.timers.vote) {
+      clearTimeout(session.timers.vote);
+      session.timers.vote = undefined;
+    }
+    if (session.timers.whiteGuess) {
+      clearTimeout(session.timers.whiteGuess);
+      session.timers.whiteGuess = undefined;
+    }
+
+    gameStore.updateState(sessionCode, state);
+
+    this.emitToRoom(sessionCode, 'game/restarted', { scoreboard: state.scoreboard });
     this.emitToRoom(sessionCode, 'session/state', this.sanitizeStateFor(null, state));
   }
 

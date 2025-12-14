@@ -1,18 +1,58 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { HelpCircle } from 'lucide-react'
 import { apiClient } from '@/lib/api'
-import { useSessionStore } from '@/lib/session-store'
+import { useSessionStore, getStoredSession } from '@/lib/session-store'
+import { GameIntroCarousel } from '@/components/game/GameIntroCarousel'
 
 export function Home() {
   const [name, setName] = useState('')
   const [sessionCode, setSessionCode] = useState('')
   const [isJoining, setIsJoining] = useState(false)
+  const [showIntro, setShowIntro] = useState(false)
   const navigate = useNavigate()
   const setMe = useSessionStore(state => state.setMe)
+
+  // Show intro for first-time visitors
+  useEffect(() => {
+    const hasSeenIntro = localStorage.getItem('spyhunt_intro_seen')
+    if (!hasSeenIntro) {
+      setShowIntro(true)
+    }
+  }, [])
+
+  // Auto-reconnect if valid session data exists (not expired) - only on initial mount
+  useEffect(() => {
+    const sessionData = getStoredSession()
+    if (sessionData && sessionData.playerId && sessionData.token) {
+      // Check if we have a session code stored
+      const savedSession = localStorage.getItem('spyhunt_session')
+      if (savedSession) {
+        try {
+          const parsed = JSON.parse(savedSession)
+          if (parsed.code) {
+            setMe(sessionData)
+            setName(sessionData.name || '')
+            // Navigate to lobby/game based on session phase
+            navigate(`/lobby/${parsed.code}`)
+          }
+        } catch (error) {
+          console.error('Failed to restore session:', error)
+          localStorage.removeItem('spyhunt_session')
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleCloseIntro = () => {
+    setShowIntro(false)
+    localStorage.setItem('spyhunt_intro_seen', 'true')
+  }
 
   const createSessionMutation = useMutation({
     mutationFn: () => apiClient.createSession({
@@ -21,12 +61,14 @@ export function Home() {
       settings: {}
     }),
     onSuccess: (data) => {
-      setMe({
+      const sessionData = {
         playerId: data.playerId,
         token: data.playerToken,
         name,
-        emoji: data.emoji
-      })
+        emoji: data.emoji,
+        code: data.code
+      }
+      setMe(sessionData) // This handles localStorage
       navigate(`/lobby/${data.code}`)
     }
   })
@@ -34,12 +76,14 @@ export function Home() {
   const joinSessionMutation = useMutation({
     mutationFn: () => apiClient.joinSession(sessionCode.toLowerCase(), { name }),
     onSuccess: (data) => {
-      setMe({
+      const sessionData = {
         playerId: data.playerId,
         token: data.playerToken,
         name,
-        emoji: data.emoji
-      })
+        emoji: data.emoji,
+        code: sessionCode.toLowerCase()
+      }
+      setMe(sessionData) // This handles localStorage
       navigate(`/lobby/${sessionCode.toLowerCase()}`)
     }
   })
@@ -60,17 +104,29 @@ export function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
+      {/* Intro Carousel */}
+      {showIntro && <GameIntroCarousel onClose={handleCloseIntro} />}
+
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-2">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-2 animate-fade-in">
             Spy Hunt
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-4">
             The ultimate multiplayer party game
           </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowIntro(true)}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <HelpCircle className="h-4 w-4 mr-2" />
+            How to Play
+          </Button>
         </div>
 
-        <Card className="game-card">
+        <Card className="game-card animate-slide-up">
           <CardHeader>
             <CardTitle>Join the Game</CardTitle>
             <CardDescription>
@@ -86,6 +142,8 @@ export function Home() {
                 disabled={isLoading}
                 className="text-center text-lg"
                 maxLength={50}
+                autoComplete="off"
+                data-form-type="other"
               />
             </div>
 
@@ -117,6 +175,8 @@ export function Home() {
                   onChange={(e) => setSessionCode(e.target.value.toUpperCase())}
                   disabled={isLoading}
                   className="text-center font-mono"
+                  autoComplete="off"
+                  data-form-type="other"
                 />
                 
                 <div className="flex gap-2">

@@ -3,11 +3,12 @@ import { SessionState, Player, CreateSessionResponse, JoinSessionResponse } from
 import { gameStore } from '../game/store';
 import { generateSessionCode, generatePlayerId, generatePlayerToken } from '../game/ids';
 import { assignEmoji, getUsedEmojis } from '../game/emoji';
-import { 
-  createSessionSchema, 
-  joinSessionSchema, 
+import {
+  createSessionSchema,
+  joinSessionSchema,
   updateSeatingSchema,
-  kickPlayerSchema
+  kickPlayerSchema,
+  updateEmojiSchema
 } from './schemas';
 
 export async function sessionRoutes(fastify: FastifyInstance) {
@@ -59,7 +60,8 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       emoji,
       isWhite: false,
       isConnected: false,
-      isEliminated: false
+      isEliminated: false,
+      isReady: false
     };
 
     const sessionState: SessionState = {
@@ -74,6 +76,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       round: null,
       vote: null,
       whiteGuess: null,
+      scoreboard: null,
       settings: defaultSettings
     };
 
@@ -98,7 +101,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       reply.status(400);
       return { error: 'Invalid request data', details: validation.error.issues };
     }
-    
+
     const { code } = request.params;
     const { name } = validation.data;
 
@@ -108,6 +111,38 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       return { error: 'Session not found' };
     }
 
+    // Check if a player with this name already exists (reconnection scenario)
+    // This check must happen BEFORE the "game started" check to allow rejoins
+    const existingPlayer = session.state.players.find(p => p.name === name);
+    if (existingPlayer) {
+      // Check actual socket connections, not just isConnected flag (handles race conditions)
+      const hasActiveSockets = gameStore.isPlayerConnected(code, existingPlayer.id);
+
+      console.log(`Rejoin attempt for "${name}" - Player ID: ${existingPlayer.id}, hasActiveSockets: ${hasActiveSockets}, isConnected flag: ${existingPlayer.isConnected}`);
+
+      if (!hasActiveSockets) {
+        // Player exists but has no active sockets - allow them to rejoin with a new token
+        // This works even if the game has already started (reconnection)
+        const newToken = generatePlayerToken();
+        gameStore.addPlayerToken(code, newToken, existingPlayer.id);
+
+        console.log(`Allowing rejoin for "${name}" with new token`);
+
+        const response: JoinSessionResponse = {
+          playerToken: newToken,
+          playerId: existingPlayer.id,
+          emoji: existingPlayer.emoji
+        };
+        return response;
+      }
+
+      // Player with same name has active connections - reject (prevent duplicates)
+      console.log(`Rejecting rejoin for "${name}" - still has active sockets`);
+      reply.status(409);
+      return { error: 'A player with this name is already in the game' };
+    }
+
+    // For NEW players (not reconnecting), check if game has started
     if (session.state.phase !== 'lobby' && !session.state.settings.allowLateJoin) {
       reply.status(409);
       return { error: 'Game has already started' };
@@ -124,7 +159,8 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       emoji,
       isWhite: false,
       isConnected: false,
-      isEliminated: false
+      isEliminated: false,
+      isReady: false
     };
 
     session.state.players.push(player);
@@ -184,6 +220,15 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       return { error: 'Need at least 4 players to start' };
     }
 
+    // Check if all non-host players are ready (host doesn't need to be ready)
+    const notReadyPlayers = session.state.players.filter(
+      p => p.id !== session.state.hostPlayerId && !p.isReady
+    );
+    if (notReadyPlayers.length > 0) {
+      reply.status(409);
+      return { error: `${notReadyPlayers.length} player(s) not ready` };
+    }
+
     // Import and use game engine
     const { GameEngine } = await import('../game/engine');
     const engine = new GameEngine(fastify.io);
@@ -239,6 +284,34 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     return { ok: true };
   });
 
+  // Restart game (host only) - Play Again
+  fastify.post('/sessions/:code/restart', async (request: any, reply: any) => {
+    const { code } = request.params;
+    const session = gameStore.getSession(code);
+
+    if (!session) {
+      reply.status(404);
+      return { error: 'Session not found' };
+    }
+
+    if (!request.playerId || request.playerId !== session.state.hostPlayerId) {
+      reply.status(403);
+      return { error: 'Only the host can restart the game' };
+    }
+
+    if (session.state.phase !== 'ended') {
+      reply.status(409);
+      return { error: 'Game has not ended yet' };
+    }
+
+    // Import and use game engine
+    const { GameEngine } = await import('../game/engine');
+    const engine = new GameEngine(fastify.io);
+    engine.restartGame(code);
+
+    return { ok: true };
+  });
+
   // Kick player (host only)
   fastify.post('/sessions/:code/kick', async (request: any, reply: any) => {
     // Validate request body
@@ -278,5 +351,95 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     gameStore.updateState(code, session.state);
 
     return { ok: true };
+  });
+
+  // Update player emoji
+  fastify.post('/sessions/:code/emoji', async (request: any, reply: any) => {
+    // Validate request body
+    const validation = updateEmojiSchema.safeParse(request.body);
+    if (!validation.success) {
+      reply.status(400);
+      return { error: 'Invalid request data', details: validation.error.issues };
+    }
+
+    const { code } = request.params;
+    const { emoji } = validation.data;
+    const session = gameStore.getSession(code);
+
+    if (!session) {
+      reply.status(404);
+      return { error: 'Session not found' };
+    }
+
+    if (!request.playerId) {
+      reply.status(401);
+      return { error: 'Unauthorized' };
+    }
+
+    if (session.state.phase !== 'lobby') {
+      reply.status(409);
+      return { error: 'Cannot change emoji after game starts' };
+    }
+
+    // Check if emoji is already used by another player
+    const emojiUsedBy = session.state.players.find(
+      p => p.emoji === emoji && p.id !== request.playerId
+    );
+
+    if (emojiUsedBy) {
+      reply.status(409);
+      return { error: 'Emoji already taken by another player' };
+    }
+
+    // Update player's emoji
+    const player = session.state.players.find(p => p.id === request.playerId);
+    if (!player) {
+      reply.status(404);
+      return { error: 'Player not found' };
+    }
+
+    player.emoji = emoji;
+    gameStore.updateState(code, session.state);
+
+    // Broadcast update to all players
+    fastify.io.to(code).emit('session/players_update', session.state.players);
+
+    return { ok: true, emoji };
+  });
+
+  // Toggle player ready status
+  fastify.post('/sessions/:code/ready', async (request: any, reply: any) => {
+    const { code } = request.params;
+    const session = gameStore.getSession(code);
+
+    if (!session) {
+      reply.status(404);
+      return { error: 'Session not found' };
+    }
+
+    if (!request.playerId) {
+      reply.status(401);
+      return { error: 'Unauthorized' };
+    }
+
+    if (session.state.phase !== 'lobby') {
+      reply.status(409);
+      return { error: 'Game has already started' };
+    }
+
+    // Find and toggle player's ready status
+    const player = session.state.players.find(p => p.id === request.playerId);
+    if (!player) {
+      reply.status(404);
+      return { error: 'Player not found' };
+    }
+
+    player.isReady = !player.isReady;
+    gameStore.updateState(code, session.state);
+
+    // Broadcast update to all players
+    fastify.io.to(code).emit('session/players_update', session.state.players);
+
+    return { ok: true, isReady: player.isReady };
   });
 }

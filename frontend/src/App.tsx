@@ -15,7 +15,10 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative">
+        {/* Animated background particles */}
+        <div className="bg-particles" />
+
         <AppRouter />
         <Toaster />
       </div>

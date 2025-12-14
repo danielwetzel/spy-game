@@ -97,11 +97,52 @@ class ApiClient {
       headers: this.getAuthHeaders(token),
       body: JSON.stringify({ playerId }),
     })
-    
+
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.message || 'Failed to kick player')
     }
+  }
+
+  async restartGame(code: string, token: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/sessions/${code}/restart`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(token, false),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || 'Failed to restart game')
+    }
+  }
+
+  async updateEmoji(code: string, token: string, emoji: string): Promise<{ emoji: string }> {
+    const response = await fetch(`${API_BASE}/sessions/${code}/emoji`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(token),
+      body: JSON.stringify({ emoji }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || error.error || 'Failed to update emoji')
+    }
+
+    return response.json()
+  }
+
+  async toggleReady(code: string, token: string): Promise<{ isReady: boolean }> {
+    const response = await fetch(`${API_BASE}/sessions/${code}/ready`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(token, false),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || error.error || 'Failed to toggle ready status')
+    }
+
+    return response.json()
   }
 }
 

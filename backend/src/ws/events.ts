@@ -157,7 +157,7 @@ export function setupSocketEvents(io: any) {
     // Handle disconnection
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);
-      
+
       // Find and update player connection status
       for (const code of gameStore.getAllActiveCodes()) {
         const sessionData = gameStore.getSession(code);
@@ -166,31 +166,71 @@ export function setupSocketEvents(io: any) {
         for (const [playerId, sockets] of sessionData.sockets) {
           if (sockets.has(socket.id)) {
             gameStore.removeSocket(code, playerId, socket.id);
-            
+
             const isStillConnected = gameStore.isPlayerConnected(code, playerId);
             if (!isStillConnected) {
               const player = sessionData.state.players.find(p => p.id === playerId);
               if (player) {
-                player.isConnected = false;
-                gameStore.updateState(code, sessionData.state);
-                
-                // Broadcast player disconnection
-                socket.to(code).emit('session/players_update', sessionData.state.players);
-                
-                // Handle disconnection during active turn
-                if (sessionData.state.phase === 'round_play' && 
-                    sessionData.state.round &&
-                    sessionData.state.players[sessionData.state.round.currentTurnIndex].id === playerId) {
-                  
-                  // Start 30s grace timer
-                  const graceTimer = setTimeout(() => {
-                    // Auto-skip if still disconnected
-                    if (!gameStore.isPlayerConnected(code, playerId)) {
-                      gameEngine.confirmSpoken(code, playerId);
+                // In lobby phase, remove the player entirely
+                if (sessionData.state.phase === 'lobby') {
+                  const playerIndex = sessionData.state.players.findIndex(p => p.id === playerId);
+                  if (playerIndex !== -1) {
+                    sessionData.state.players.splice(playerIndex, 1);
+                    console.log(`Player ${player.name} removed from lobby ${code}`);
+
+                    // If the removed player was the host, assign a new host
+                    if (sessionData.state.hostPlayerId === playerId) {
+                      if (sessionData.state.players.length > 0) {
+                        sessionData.state.hostPlayerId = sessionData.state.players[0].id;
+                        console.log(`New host assigned: ${sessionData.state.players[0].name}`);
+                      } else {
+                        // No players left, delete the session
+                        console.log(`No players left in session ${code}, deleting`);
+                        gameStore.deleteSession(code);
+                        break;
+                      }
                     }
-                  }, 30000);
-                  
-                  sessionData.timers.disconnectGrace?.set(playerId, graceTimer);
+
+                    // Remove the player's token
+                    for (const [token, pId] of sessionData.tokens.entries()) {
+                      if (pId === playerId) {
+                        sessionData.tokens.delete(token);
+                        break;
+                      }
+                    }
+
+                    gameStore.updateState(code, sessionData.state);
+
+                    // Broadcast updated player list and state
+                    io.to(code).emit('session/players_update', sessionData.state.players);
+                    io.to(code).emit('session/state', {
+                      ...sessionData.state,
+                      secretWord: null
+                    });
+                  }
+                } else {
+                  // During game, just mark as disconnected (don't remove)
+                  player.isConnected = false;
+                  gameStore.updateState(code, sessionData.state);
+
+                  // Broadcast player disconnection
+                  socket.to(code).emit('session/players_update', sessionData.state.players);
+
+                  // Handle disconnection during active turn
+                  if (sessionData.state.phase === 'round_play' &&
+                      sessionData.state.round &&
+                      sessionData.state.players[sessionData.state.round.currentTurnIndex].id === playerId) {
+
+                    // Start 30s grace timer
+                    const graceTimer = setTimeout(() => {
+                      // Auto-skip if still disconnected
+                      if (!gameStore.isPlayerConnected(code, playerId)) {
+                        gameEngine.confirmSpoken(code, playerId);
+                      }
+                    }, 30000);
+
+                    sessionData.timers.disconnectGrace?.set(playerId, graceTimer);
+                  }
                 }
               }
             }

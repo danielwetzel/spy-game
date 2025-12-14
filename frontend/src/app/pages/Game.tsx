@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { Clock, MessageCircle, Vote, Crown, Users, Target } from 'lucide-react'
-import { useSessionStore } from '@/lib/session-store'
+import { useSessionStore, getStoredSession } from '@/lib/session-store'
 import { formatTimeRemaining } from '@/lib/utils'
 import { SecretWordCard } from '@/components/game/SecretWordCard'
 import { EliminationAnimation } from '@/components/game/EliminationAnimation'
@@ -15,12 +15,22 @@ import { VotingResultAnimation } from '@/components/game/VotingResultAnimation'
 export function Game() {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
-  const { session, me, elimination, votingResult, connect, isConnected, confirmSpoken, castVote, submitWhiteGuess, hideElimination, hideVotingResult } = useSessionStore()
+  const { session, me, elimination, votingResult, connect, isConnected, confirmSpoken, castVote, submitWhiteGuess, skipPlayer, hideElimination, hideVotingResult } = useSessionStore()
   const [selectedVote, setSelectedVote] = useState<string | null>(null)
+  const [pendingVote, setPendingVote] = useState<string | null | undefined>(undefined)
   const [whiteGuess, setWhiteGuess] = useState('')
   const [timeRemaining, setTimeRemaining] = useState('')
 
+  // Validate session and connect
   useEffect(() => {
+    // Check if session is expired
+    const sessionData = getStoredSession()
+    if (!sessionData) {
+      // Session expired or invalid, redirect to home
+      navigate('/')
+      return
+    }
+
     if (code && me.token) {
       connect(code, me.token)
     } else {
@@ -60,8 +70,19 @@ export function Game() {
   }
 
   const handleVote = (targetId: string | null) => {
-    setSelectedVote(targetId)
-    castVote(targetId)
+    setPendingVote(targetId)
+  }
+
+  const confirmVote = () => {
+    if (pendingVote !== undefined) {
+      setSelectedVote(pendingVote)
+      castVote(pendingVote)
+      setPendingVote(undefined)
+    }
+  }
+
+  const cancelVote = () => {
+    setPendingVote(undefined)
   }
 
   const handleSubmitGuess = () => {
@@ -280,39 +301,79 @@ export function Game() {
                       You have been eliminated and cannot vote
                     </p>
                   )}
+
+                  {/* Already voted message */}
+                  {selectedVote !== null && selectedVote !== undefined && (
+                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-center">
+                      <p className="text-green-400 text-sm">
+                        You voted for {selectedVote === null ? 'Skip' : session.players.find(p => p.id === selectedVote)?.name}
+                      </p>
+                    </div>
+                  )}
+
                   <div className={`grid grid-cols-2 gap-3 ${
-                    session.players.find(p => p.id === me.playerId)?.isEliminated 
-                      ? 'opacity-40 pointer-events-none' 
+                    session.players.find(p => p.id === me.playerId)?.isEliminated || selectedVote !== null
+                      ? 'opacity-40 pointer-events-none'
                       : ''
                   }`}>
-                    {session.players.filter(player => !player.isEliminated).map((player) => (
-                      <Button
-                        key={player.id}
-                        variant={selectedVote === player.id ? "default" : "outline"}
-                        onClick={() => handleVote(player.id)}
-                        className={`h-auto p-3 flex flex-col items-center gap-2 ${
-                          player.id === me.playerId ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                        disabled={!session.vote || Date.now() > session.vote.votingEndsAt || player.id === me.playerId}
-                      >
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-lg">
-                            {player.emoji}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{player.name}</span>
-                      </Button>
-                    ))}
-                    <Button
-                      variant={selectedVote === null ? "secondary" : "outline"}
-                      onClick={() => handleVote(null)}
-                      className="h-auto p-3 flex flex-col items-center gap-2 col-span-2"
-                      disabled={!session.vote || Date.now() > session.vote.votingEndsAt}
-                    >
-                      <Target className="h-6 w-6" />
-                      <span className="text-sm">Skip Vote</span>
-                    </Button>
+                    {session.players.filter(player => !player.isEliminated).map((player) => {
+                      const isSelected = pendingVote === player.id
+                      const isMe = player.id === me.playerId
+
+                      return (
+                        <Button
+                          key={player.id}
+                          variant={isSelected ? "default" : "outline"}
+                          onClick={() => handleVote(player.id)}
+                          className={`w-full h-auto p-3 flex flex-col items-center gap-2 ${
+                            isMe ? 'opacity-50 cursor-not-allowed' : ''
+                          } ${isSelected ? 'ring-2 ring-primary' : ''}`}
+                          disabled={!session.vote || Date.now() > session.vote.votingEndsAt || isMe || selectedVote !== null}
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="text-lg">
+                              {player.emoji}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{player.name}</span>
+                        </Button>
+                      )
+                    })}
                   </div>
+
+                  {/* Skip vote button */}
+                  <Button
+                    variant={pendingVote === null ? "secondary" : "outline"}
+                    onClick={() => handleVote(null)}
+                    className={`w-full h-auto p-3 flex items-center justify-center gap-2 ${pendingVote === null ? 'ring-2 ring-primary' : ''}`}
+                    disabled={!session.vote || Date.now() > session.vote.votingEndsAt || selectedVote !== null}
+                  >
+                    <Target className="h-5 w-5" />
+                    <span className="text-sm">Skip Vote (No Accusation)</span>
+                  </Button>
+
+                  {/* Confirm/Cancel buttons at the bottom */}
+                  {pendingVote !== undefined && selectedVote === null && (
+                    <div className="flex gap-2 pt-2 border-t border-muted">
+                      <Button
+                        onClick={confirmVote}
+                        className="flex-1 bg-green-500 hover:bg-green-600"
+                      >
+                        Confirm Vote
+                        {pendingVote !== null && (
+                          <span className="ml-2">
+                            ({session.players.find(p => p.id === pendingVote)?.emoji})
+                          </span>
+                        )}
+                        {pendingVote === null && (
+                          <span className="ml-2">(Skip)</span>
+                        )}
+                      </Button>
+                      <Button variant="outline" onClick={cancelVote}>
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -381,15 +442,31 @@ export function Game() {
               {session.phase === 'voting' && session.vote && (
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Voting Progress</p>
-                  <div className="space-y-1">
-                    {session.players.filter(player => !player.isEliminated).map((player) => (
-                      <div key={player.id} className="flex items-center justify-between text-sm">
-                        <span>{player.name}</span>
-                        <span className={player.id in session.vote!.votes ? 'text-green-400' : 'text-muted-foreground'}>
-                          {player.id in session.vote!.votes ? '✓ Voted' : 'Waiting...'}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="space-y-2">
+                    {session.players.filter(player => !player.isEliminated).map((player) => {
+                      const hasVoted = player.id in session.vote!.votes
+                      return (
+                        <div
+                          key={player.id}
+                          className={`flex items-center justify-between text-sm p-2 rounded-lg transition-all ${
+                            hasVoted
+                              ? 'bg-green-500/10 border border-green-500/30'
+                              : 'bg-muted/10 border border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{player.emoji}</span>
+                            <span className={hasVoted ? 'text-green-400' : ''}>{player.name}</span>
+                          </div>
+                          <span className={hasVoted ? 'text-green-400 font-medium' : 'text-muted-foreground'}>
+                            {hasVoted ? '✓ Locked in' : 'Deciding...'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="mt-3 text-center text-xs text-muted-foreground">
+                    {Object.keys(session.vote.votes).length} / {session.players.filter(p => !p.isEliminated).length} votes cast
                   </div>
                 </div>
               )}
@@ -397,10 +474,10 @@ export function Game() {
               {isHost && session.phase === 'round_play' && (
                 <div className="pt-4 border-t">
                   <p className="text-sm text-muted-foreground mb-2">Host Controls</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => {/* Skip current player */}}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={skipPlayer}
                     className="w-full"
                   >
                     Skip Current Player

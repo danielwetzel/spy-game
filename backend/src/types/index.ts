@@ -8,6 +8,7 @@ export interface Player {
   isWhite: boolean;
   isConnected: boolean;
   isEliminated: boolean;
+  isReady: boolean;
 }
 
 export type GamePhase =
@@ -48,6 +49,7 @@ export interface SessionState {
   round: RoundInfo | null;
   vote: VoteState | null;
   whiteGuess: WhiteGuessState | null;
+  scoreboard: Scoreboard | null;
   settings: {
     voteSeconds: number;
     whiteGuessSeconds: number;
@@ -96,4 +98,17 @@ export interface GameEndResult {
   secretWord: string;
   winner: "white" | "others";
   whiteGuess?: string;
+}
+
+export interface PlayerScore {
+  playerName: string; // Track by name so scores persist across rejoins
+  gamesPlayed: number;
+  score: number; // Total score: White wins = +3, Word bearer wins = +1
+  whiteWins: number;
+  wordBearerWins: number;
+}
+
+export interface Scoreboard {
+  scores: Record<string, PlayerScore>; // Keyed by player name
+  gamesPlayed: number;
 }

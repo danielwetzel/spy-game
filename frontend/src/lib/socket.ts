@@ -6,15 +6,19 @@ class SocketManager {
   private socket: Socket | null = null
   private reconnectAttempts = 0
   private maxReconnectAttempts = 5
+  private hasSetupListeners = false
 
   connect(): Socket {
-    if (this.socket?.connected) {
+    // If socket exists and is connected or connecting, return it
+    if (this.socket) {
       return this.socket
     }
 
     this.socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: this.maxReconnectAttempts,
     })
 
     this.socket.on('connect', () => {
@@ -29,7 +33,7 @@ class SocketManager {
     this.socket.on('connect_error', (error) => {
       console.error('Connection error:', error)
       this.reconnectAttempts++
-      
+
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.error('Max reconnection attempts reached')
         this.socket?.disconnect()
@@ -41,9 +45,20 @@ class SocketManager {
 
   disconnect() {
     if (this.socket) {
+      this.socket.removeAllListeners()
       this.socket.disconnect()
       this.socket = null
+      this.hasSetupListeners = false
+      this.reconnectAttempts = 0
     }
+  }
+
+  hasListeners(): boolean {
+    return this.hasSetupListeners
+  }
+
+  markListenersSetup(): void {
+    this.hasSetupListeners = true
   }
 
   getSocket(): Socket | null {

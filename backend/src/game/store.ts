@@ -1,5 +1,8 @@
 import { SessionState, SessionCode, PlayerId } from '../types';
 
+// Session expiration time: 12 hours in milliseconds
+const SESSION_EXPIRATION_MS = 12 * 60 * 60 * 1000;
+
 export interface SessionStore {
   state: SessionState;
   tokens: Map<string, PlayerId>;
@@ -9,6 +12,7 @@ export interface SessionStore {
     whiteGuess?: NodeJS.Timeout;
     disconnectGrace?: Map<PlayerId, NodeJS.Timeout>;
   };
+  createdAt: number; // Timestamp when session was created
 }
 
 class GameStore {
@@ -21,14 +25,29 @@ class GameStore {
       sockets: new Map(),
       timers: {
         disconnectGrace: new Map()
-      }
+      },
+      createdAt: Date.now()
     };
     this.sessions.set(state.code, store);
     return store;
   }
 
   getSession(code: SessionCode): SessionStore | undefined {
-    return this.sessions.get(code);
+    const session = this.sessions.get(code);
+
+    // Check if session exists and hasn't expired
+    if (session) {
+      const now = Date.now();
+      const age = now - session.createdAt;
+
+      if (age > SESSION_EXPIRATION_MS) {
+        // Session expired, clean it up
+        this.deleteSession(code);
+        return undefined;
+      }
+    }
+
+    return session;
   }
 
   deleteSession(code: SessionCode): void {

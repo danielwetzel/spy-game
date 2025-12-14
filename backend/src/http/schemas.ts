@@ -24,7 +24,12 @@ export const kickPlayerSchema = z.object({
   playerId: z.string()
 });
 
+export const updateEmojiSchema = z.object({
+  emoji: z.string().min(1).max(10)
+});
+
 export type CreateSessionInput = z.infer<typeof createSessionSchema>;
 export type JoinSessionInput = z.infer<typeof joinSessionSchema>;
 export type UpdateSeatingInput = z.infer<typeof updateSeatingSchema>;
 export type KickPlayerInput = z.infer<typeof kickPlayerSchema>;
+export type UpdateEmojiInput = z.infer<typeof updateEmojiSchema>;

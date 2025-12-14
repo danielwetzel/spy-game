@@ -1,18 +1,36 @@
 import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Trophy, Eye, EyeOff, Home } from 'lucide-react'
-import { useSessionStore } from '@/lib/session-store'
+import { Trophy, Eye, EyeOff, Home, RotateCcw, Medal, Target, Crosshair } from 'lucide-react'
+import { useSessionStore, getStoredSession } from '@/lib/session-store'
+import { apiClient } from '@/lib/api'
 
 export function Results() {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
-  const { session, gameResult, me, connect, isConnected } = useSessionStore()
+  const { session, gameResult, me, connect, isConnected, reset } = useSessionStore()
 
+  const restartMutation = useMutation({
+    mutationFn: () => apiClient.restartGame(code!, me.token!),
+    onError: (error) => {
+      console.error('Failed to restart game:', error)
+    }
+  })
+
+  // Validate session and connect
   useEffect(() => {
+    // Check if session is expired
+    const sessionData = getStoredSession()
+    if (!sessionData) {
+      // Session expired or invalid, redirect to home
+      navigate('/')
+      return
+    }
+
     if (code && me.token) {
       connect(code, me.token)
     } else {
@@ -31,7 +49,12 @@ export function Results() {
   }, [session?.phase, navigate, code])
 
   const handleNewGame = () => {
+    reset() // Clear session storage
     navigate('/')
+  }
+
+  const handlePlayAgain = () => {
+    restartMutation.mutate()
   }
 
   if (!session || !isConnected || session.phase !== 'ended') {
@@ -213,6 +236,74 @@ export function Results() {
           </CardContent>
         </Card>
 
+        {/* Scoreboard */}
+        {session.scoreboard && session.scoreboard.gamesPlayed > 0 && (
+          <Card className="game-card mb-8 border-yellow-500/30 bg-gradient-to-br from-yellow-500/5 to-orange-500/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Medal className="h-5 w-5 text-yellow-400" />
+                Scoreboard
+                <Badge variant="outline" className="ml-2">
+                  {session.scoreboard.gamesPlayed} game{session.scoreboard.gamesPlayed !== 1 ? 's' : ''} played
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {session.players
+                  .map(player => ({
+                    player,
+                    playerScore: session.scoreboard?.scores[player.name]
+                  }))
+                  .sort((a, b) => (b.playerScore?.score || 0) - (a.playerScore?.score || 0))
+                  .map(({ player, playerScore }, index) => (
+                    <div
+                      key={player.id}
+                      className={`flex items-center justify-between p-3 rounded-lg ${
+                        index === 0 && playerScore?.score ? 'bg-yellow-500/20 border border-yellow-500/30' : 'bg-muted/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg font-bold w-6 text-center">
+                          {index === 0 && playerScore?.score ? '👑' : `#${index + 1}`}
+                        </span>
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className="text-xl">{player.emoji}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{player.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {playerScore?.gamesPlayed || 0} games
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <p className="text-xl font-bold text-green-400">{playerScore?.score || 0}</p>
+                          <p className="text-xs text-muted-foreground">Points</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="flex items-center gap-1">
+                            <Crosshair className="h-3 w-3 text-purple-400" />
+                            <span className="text-sm">{playerScore?.whiteWins || 0}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">+3 pts</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="flex items-center gap-1">
+                            <Target className="h-3 w-3 text-blue-400" />
+                            <span className="text-sm">{playerScore?.wordBearerWins || 0}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">+1 pt</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Game Stats */}
         <Card className="game-card mb-8">
           <CardHeader>
@@ -242,9 +333,20 @@ export function Results() {
 
         {/* Actions */}
         <div className="flex gap-4 justify-center">
-          <Button onClick={handleNewGame} size="lg" className="flex items-center gap-2">
+          {me.playerId === session.hostPlayerId && (
+            <Button
+              onClick={handlePlayAgain}
+              size="lg"
+              className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+              disabled={restartMutation.isPending}
+            >
+              <RotateCcw className={`h-4 w-4 ${restartMutation.isPending ? 'animate-spin' : ''}`} />
+              {restartMutation.isPending ? 'Starting...' : 'Play Again'}
+            </Button>
+          )}
+          <Button onClick={handleNewGame} size="lg" variant="outline" className="flex items-center gap-2">
             <Home className="h-4 w-4" />
-            New Game
+            Leave Game
           </Button>
         </div>
       </div>
