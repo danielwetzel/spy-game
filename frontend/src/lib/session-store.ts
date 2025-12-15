@@ -304,11 +304,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       // If session not found or invalid token, clear session and disconnect
       if (error.code === 404 || error.code === 401) {
         console.log('Session invalid, clearing stored session')
-        localStorage.removeItem('spyhunt_session')
+        // Clear everything and force hard navigation to break any redirect loops
         socketManager.disconnect()
-        get().reset()
-        // Redirect to home - we use window.location since we can't use navigate here
-        window.location.href = '/'
+        localStorage.removeItem('spyhunt_session')
+        // Use replace to prevent back-button issues, hard navigate to clear all React state
+        window.location.replace('/')
       }
     })
     
@@ -349,6 +349,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   reset: () => {
+    socketManager.disconnect()  // Clean disconnect before clearing state
     localStorage.removeItem('spyhunt_session')
     set({
       session: null,

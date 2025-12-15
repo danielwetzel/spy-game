@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
-import { Clock, MessageCircle, Vote, Crown, Users, Target } from 'lucide-react'
+import { Clock, MessageCircle, Vote, Crown, Users, Target, AlertTriangle, ShieldAlert } from 'lucide-react'
 import { useSessionStore, getStoredSession } from '@/lib/session-store'
 import { formatTimeRemaining } from '@/lib/utils'
 import { SecretWordCard } from '@/components/game/SecretWordCard'
@@ -21,22 +21,23 @@ export function Game() {
   const [whiteGuess, setWhiteGuess] = useState('')
   const [timeRemaining, setTimeRemaining] = useState('')
 
-  // Validate session and connect
+  // Check for valid session data - redirect immediately if missing
+  const storedSession = getStoredSession()
+  const hasValidSession = storedSession && me.token
+
+  // Validate session and connect - only run when code/token change, not on every state update
   useEffect(() => {
-    // Check if session is expired
-    const sessionData = getStoredSession()
-    if (!sessionData) {
+    if (!hasValidSession) {
       // Session expired or invalid, redirect to home
-      navigate('/')
+      navigate('/', { replace: true })
       return
     }
 
     if (code && me.token) {
       connect(code, me.token)
-    } else {
-      navigate('/')
     }
-  }, [code, me.token, connect, navigate])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, me.token, hasValidSession])
 
   useEffect(() => {
     if (session?.phase === 'lobby') {
@@ -65,6 +66,14 @@ export function Game() {
     return () => clearInterval(interval)
   }, [session])
 
+  // Reset voting state when phase changes away from voting (fixes Round 2+ voting bug)
+  useEffect(() => {
+    if (session?.phase !== 'voting') {
+      setSelectedVote(null)
+      setPendingVote(undefined)
+    }
+  }, [session?.phase])
+
   const handleConfirmSpoken = () => {
     confirmSpoken()
   }
@@ -89,6 +98,11 @@ export function Game() {
     if (whiteGuess.trim()) {
       submitWhiteGuess(whiteGuess.trim())
     }
+  }
+
+  // If no valid session, show nothing (useEffect will redirect)
+  if (!hasValidSession) {
+    return null
   }
 
   if (!session || !isConnected) {
@@ -140,9 +154,9 @@ export function Game() {
   const phaseDisplay = getPhaseDisplay()
 
   return (
-    <div className="min-h-screen p-4">
-      {/* Voting Result Animation Overlay */}
-      {votingResult && (
+    <div className="min-h-screen p-4 relative z-10">
+      {/* Voting Result Animation Overlay - Skip when White is caught (White Guess popup handles that) */}
+      {votingResult && !votingResult.wasWhite && (
         <VotingResultAnimation
           isVisible={votingResult.isVisible}
           accusedPlayerId={votingResult.accusedPlayerId}
@@ -164,10 +178,121 @@ export function Game() {
           onAnimationComplete={hideElimination}
         />
       )}
-      
+
+      {/* White Guess Phase - Full Screen Overlay */}
+      {session.phase === 'white_guess' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fade-in">
+          <Card className="w-full max-w-lg game-card border-2 border-red-500/50 bg-gradient-to-br from-red-500/20 via-background to-orange-500/10">
+            <CardContent className="p-8">
+              {amIWhite ? (
+                // Mr/Ms White's view - Enter guess
+                <div className="space-y-6 text-center">
+                  <div className="flex items-center justify-center">
+                    <div className="p-4 rounded-full bg-red-500/20 border border-red-500/30">
+                      <AlertTriangle className="h-10 w-10 text-red-400" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Badge variant="destructive" className="mb-3 px-4 py-1.5 text-base">
+                      You've Been Caught!
+                    </Badge>
+                    <h2 className="text-2xl font-bold text-red-300 mb-2">
+                      Last Chance to Win
+                    </h2>
+                    <p className="text-muted-foreground">
+                      {session.gameMode === 'places_roles'
+                        ? "Guess the secret location correctly to steal the victory!"
+                        : "Guess the secret word correctly to steal the victory!"}
+                    </p>
+                  </div>
+
+                  {/* Timer */}
+                  {timeRemaining && (
+                    <div className="flex items-center justify-center gap-2 text-yellow-400">
+                      <Clock className="h-5 w-5" />
+                      <span className="font-mono font-bold text-2xl">{timeRemaining}</span>
+                    </div>
+                  )}
+
+                  {/* Guess Input */}
+                  <div className="space-y-3">
+                    <Input
+                      placeholder={session.gameMode === 'places_roles' ? "Enter the secret location..." : "Enter the secret word..."}
+                      value={whiteGuess}
+                      onChange={(e) => setWhiteGuess(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSubmitGuess()}
+                      disabled={!session.whiteGuess || Date.now() > session.whiteGuess.guessEndsAt}
+                      className="text-center text-lg h-14 border-red-500/30 focus:border-red-500"
+                      autoFocus
+                    />
+                    <Button
+                      onClick={handleSubmitGuess}
+                      disabled={!whiteGuess.trim() || !session.whiteGuess || Date.now() > session.whiteGuess.guessEndsAt}
+                      size="lg"
+                      className="w-full bg-red-500 hover:bg-red-600 text-white"
+                    >
+                      Submit Guess
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // Other players' view - Stay quiet warning
+                <div className="space-y-6 text-center">
+                  <div className="flex items-center justify-center">
+                    <div className="p-4 rounded-full bg-yellow-500/20 border border-yellow-500/30">
+                      <ShieldAlert className="h-10 w-10 text-yellow-400" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Badge className="mb-3 px-4 py-1.5 text-base bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                      Stay Silent!
+                    </Badge>
+                    <h2 className="text-2xl font-bold text-yellow-300 mb-2">
+                      Mr/Ms White is Guessing
+                    </h2>
+                    <p className="text-muted-foreground">
+                      {session.gameMode === 'places_roles'
+                        ? "They are trying to guess the secret location."
+                        : "They are trying to guess the secret word."}
+                    </p>
+                  </div>
+
+                  {/* Timer */}
+                  {timeRemaining && (
+                    <div className="flex items-center justify-center gap-2 text-yellow-400">
+                      <Clock className="h-5 w-5" />
+                      <span className="font-mono font-bold text-2xl">{timeRemaining}</span>
+                    </div>
+                  )}
+
+                  {/* Warning */}
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+                    <p className="text-yellow-400 font-medium text-lg mb-2">
+                      Do NOT say anything!
+                    </p>
+                    <p className="text-sm text-yellow-400/70">
+                      Don't reveal the {session.gameMode === 'places_roles' ? 'location' : 'word'}, react to their guess, or give any hints.
+                      Stay completely silent until the result is shown.
+                    </p>
+                  </div>
+
+                  {/* Waiting indicator */}
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                    <div className="animate-pulse h-2 w-2 rounded-full bg-yellow-400" />
+                    <span>Waiting for guess...</span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 animate-fade-in">
           <div className="flex items-center gap-4">
             <Badge className={`${phaseDisplay.color} text-white px-3 py-1`}>
               {phaseDisplay.label}
@@ -175,7 +300,7 @@ export function Game() {
             {timeRemaining && (
               <div className="flex items-center gap-2 text-yellow-400">
                 <Clock className="h-4 w-4" />
-                <span className="font-mono font-bold">{timeRemaining}</span>
+                <span className="font-mono font-bold text-lg">{timeRemaining}</span>
               </div>
             )}
           </div>
@@ -193,7 +318,7 @@ export function Game() {
         </div>
 
         {/* Players Ring */}
-        <Card className="game-card mb-6">
+        <Card className="game-card mb-6 animate-slide-up">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -294,9 +419,10 @@ export function Game() {
         {/* Main Game Area */}
         <div className="grid md:grid-cols-2 gap-6">
           {/* Turn/Action Panel */}
-          <Card className="game-card">
+          <Card className="game-card animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <CardHeader>
-              <CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
                 {session.phase === 'round_play' && 'Current Turn'}
                 {session.phase === 'voting' && 'Cast Your Vote'}
                 {session.phase === 'white_guess' && 'White Player Guessing'}
@@ -497,39 +623,8 @@ export function Game() {
               )}
 
               {session.phase === 'white_guess' && (
-                <div className="space-y-4">
-                  {amIWhite ? (
-                    <div className="space-y-4">
-                      <p className="text-center text-lg">You've been caught!</p>
-                      <p className="text-center text-sm text-muted-foreground">
-                        {session.gameMode === 'places_roles'
-                          ? "Enter your guess for the secret location:"
-                          : "Enter your guess for the secret word:"}
-                      </p>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder={session.gameMode === 'places_roles' ? "The location is..." : "Your guess..."}
-                          value={whiteGuess}
-                          onChange={(e) => setWhiteGuess(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSubmitGuess()}
-                          disabled={!session.whiteGuess || Date.now() > session.whiteGuess.guessEndsAt}
-                        />
-                        <Button
-                          onClick={handleSubmitGuess}
-                          disabled={!whiteGuess.trim() || !session.whiteGuess || Date.now() > session.whiteGuess.guessEndsAt}
-                        >
-                          Guess
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center space-y-2">
-                      <p className="text-lg">Mr/Ms White is making their guess...</p>
-                      <div className="animate-pulse text-yellow-400">
-                        Waiting for final answer...
-                      </div>
-                    </div>
-                  )}
+                <div className="text-center text-muted-foreground py-4">
+                  <p>White guess in progress...</p>
                 </div>
               )}
             </CardContent>

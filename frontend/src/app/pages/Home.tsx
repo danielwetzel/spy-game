@@ -103,7 +103,7 @@ export function Home() {
   const isLoading = createSessionMutation.isPending || joinSessionMutation.isPending
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
       {/* Intro Carousel */}
       {showIntro && <GameIntroCarousel onClose={handleCloseIntro} />}
 
@@ -116,7 +116,7 @@ export function Home() {
             </span>
           </h1>
           <p className="text-muted-foreground mb-4">
-            Now even better
+            The Ultimate Secret Agent Party Game
           </p>
           <Button
             variant="ghost"

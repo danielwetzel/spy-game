@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Trophy, Eye, EyeOff, Home, RotateCcw, Medal, Target, Crosshair } from 'lucide-react'
+import { Trophy, Eye, EyeOff, LogOut, RotateCcw, Medal, Target, Crosshair, MapPin } from 'lucide-react'
 import { useSessionStore, getStoredSession } from '@/lib/session-store'
 import { apiClient } from '@/lib/api'
 
@@ -21,22 +21,34 @@ export function Results() {
     }
   })
 
-  // Validate session and connect
+  // Check for valid session data - redirect immediately if missing
+  const storedSession = getStoredSession()
+  const hasValidSession = storedSession && me.token
+
+  // Validate session and connect - only run when code/token change, not on every state update
   useEffect(() => {
-    // Check if session is expired
-    const sessionData = getStoredSession()
-    if (!sessionData) {
+    if (!hasValidSession) {
       // Session expired or invalid, redirect to home
-      navigate('/')
+      navigate('/', { replace: true })
       return
     }
 
     if (code && me.token) {
       connect(code, me.token)
-    } else {
-      navigate('/')
     }
-  }, [code, me.token, connect, navigate])
+  }, [code, me.token, connect, navigate, hasValidSession])
+
+  // Separate timeout effect for stuck loading state
+  useEffect(() => {
+    if (hasValidSession && (!session || !isConnected)) {
+      const timeout = setTimeout(() => {
+        console.log('Connection timeout, clearing session')
+        reset()
+        navigate('/', { replace: true })
+      }, 5000)
+      return () => clearTimeout(timeout)
+    }
+  }, [hasValidSession, session, isConnected, reset, navigate])
 
   useEffect(() => {
     if (session?.phase && session.phase !== 'ended') {
@@ -57,6 +69,11 @@ export function Results() {
     restartMutation.mutate()
   }
 
+  // If no valid session, show nothing (useEffect will redirect)
+  if (!hasValidSession) {
+    return null
+  }
+
   if (!session || !isConnected || session.phase !== 'ended') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -75,7 +92,7 @@ export function Results() {
         <div className="text-center">
           <p className="text-muted-foreground">No game result available</p>
           <Button onClick={() => navigate('/')} className="mt-4">
-            <Home className="h-4 w-4 mr-2" />
+            <LogOut className="h-4 w-4 mr-2" />
             Go Home
           </Button>
         </div>
@@ -88,10 +105,10 @@ export function Results() {
   const didIWin = (amIWhite && gameResult.winner === 'white') || (!amIWhite && gameResult.winner === 'others')
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4 relative z-10">
       <div className="max-w-4xl mx-auto">
         {/* Winner Banner */}
-        <Card className={`game-card mb-8 ${didIWin ? 'border-green-500/50 bg-green-500/10' : 'border-red-500/50 bg-red-500/10'}`}>
+        <Card className={`game-card mb-8 animate-fade-in ${didIWin ? 'border-green-500/50 bg-green-500/10' : 'border-red-500/50 bg-red-500/10'}`}>
           <CardContent className="text-center py-8">
             <div className="flex items-center justify-center gap-3 mb-4">
               <Trophy className={`h-8 w-8 ${didIWin ? 'text-green-400' : 'text-red-400'}`} />
@@ -104,11 +121,13 @@ export function Results() {
               <p className="text-xl">
                 {gameResult.winner === 'white' ? (
                   <>Mr/Ms White guessed correctly and wins!</>
+                ) : session.gameMode === 'places_roles' ? (
+                  <>The players found Mr/Ms White!</>
                 ) : (
                   <>The word bearers found Mr/Ms White!</>
                 )}
               </p>
-              
+
               {gameResult.whiteGuess && (
                 <p className="text-muted-foreground">
                   White's guess: <span className="font-mono">{gameResult.whiteGuess}</span>
@@ -120,30 +139,41 @@ export function Results() {
 
         {/* Game Summary */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Secret Word Reveal */}
-          <Card className="game-card">
+          {/* Secret Word/Place Reveal */}
+          <Card className={`game-card animate-slide-up ${session.gameMode === 'places_roles' ? 'border-purple-500/30' : ''}`}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                Secret Word
+                {session.gameMode === 'places_roles' ? (
+                  <>
+                    <MapPin className="h-5 w-5 text-purple-400" />
+                    Secret Place
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-5 w-5" />
+                    Secret Word
+                  </>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center space-y-4">
-                <div className="p-6 rounded-lg bg-primary/10 border border-primary/20">
-                  <p className="text-3xl font-bold text-primary">
-                    {gameResult.secretWord}
+                <div className={`p-6 rounded-lg ${session.gameMode === 'places_roles' ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-primary/10 border border-primary/20'}`}>
+                  <p className={`text-3xl font-bold ${session.gameMode === 'places_roles' ? 'text-purple-400' : 'text-primary'}`}>
+                    {session.gameMode === 'places_roles' ? gameResult.secretPlace : gameResult.secretWord}
                   </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Category: <span className="capitalize">{session.secretWordCategory}</span>
-                </p>
+                {session.gameMode !== 'places_roles' && (
+                  <p className="text-sm text-muted-foreground">
+                    Category: <span className="capitalize">{session.secretWordCategory}</span>
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
 
           {/* Mr/Ms White Reveal */}
-          <Card className="game-card">
+          <Card className="game-card animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <EyeOff className="h-5 w-5" />
@@ -191,15 +221,17 @@ export function Results() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {session.players.map((player) => {
                 const isWhite = player.id === gameResult.whitePlayerId
-                const isWinner = (isWhite && gameResult.winner === 'white') || 
+                const isWinner = (isWhite && gameResult.winner === 'white') ||
                                 (!isWhite && gameResult.winner === 'others')
-                
+                const isPlacesMode = session.gameMode === 'places_roles'
+                const playerRole = gameResult.playerRoles?.[player.id]
+
                 return (
                   <div
                     key={player.id}
                     className={`p-4 rounded-lg border ${
-                      isWinner 
-                        ? 'border-green-500/50 bg-green-500/10' 
+                      isWinner
+                        ? 'border-green-500/50 bg-green-500/10'
                         : 'border-red-500/20 bg-red-500/5'
                     }`}
                   >
@@ -214,15 +246,25 @@ export function Results() {
                           <Trophy className="h-4 w-4 text-yellow-400 absolute -top-1 -right-1" />
                         )}
                       </div>
-                      
+
                       <div className="text-center">
                         <p className="font-medium truncate max-w-full">
                           {player.name}
                         </p>
                         <div className="flex flex-col items-center gap-1 mt-1">
-                          <Badge variant={isWhite ? 'destructive' : 'default'} className="text-xs">
-                            {isWhite ? 'Mr/Ms White' : 'Word Bearer'}
-                          </Badge>
+                          {isWhite ? (
+                            <Badge variant="destructive" className="text-xs">
+                              Mr/Ms White
+                            </Badge>
+                          ) : isPlacesMode && playerRole ? (
+                            <Badge className="text-xs bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                              {playerRole}
+                            </Badge>
+                          ) : (
+                            <Badge className="text-xs bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                              Word Bearer
+                            </Badge>
+                          )}
                           <span className={`text-xs ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
                             {isWinner ? 'Winner' : 'Loser'}
                           </span>
@@ -332,22 +374,31 @@ export function Results() {
         </Card>
 
         {/* Actions */}
-        <div className="flex gap-4 justify-center">
-          {me.playerId === session.hostPlayerId && (
+        <div className="flex flex-col items-center gap-6">
+          {me.playerId === session.hostPlayerId ? (
             <Button
               onClick={handlePlayAgain}
               size="lg"
-              className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+              className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 px-8"
               disabled={restartMutation.isPending}
             >
               <RotateCcw className={`h-4 w-4 ${restartMutation.isPending ? 'animate-spin' : ''}`} />
               {restartMutation.isPending ? 'Starting...' : 'Play Again'}
             </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Waiting for host to start next game...
+            </p>
           )}
-          <Button onClick={handleNewGame} size="lg" variant="outline" className="flex items-center gap-2">
-            <Home className="h-4 w-4" />
+
+          {/* Leave Game */}
+          <button
+            onClick={handleNewGame}
+            className="text-sm text-muted-foreground hover:text-red-400 transition-colors flex items-center gap-1.5"
+          >
+            <LogOut className="h-4 w-4" />
             Leave Game
-          </Button>
+          </button>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Copy, Users, Play, Crown, Palette, Check, Loader2, HelpCircle, MapPin, MessageSquare } from 'lucide-react'
+import { Copy, Users, Play, Crown, Palette, Check, Loader2, HelpCircle, MapPin, MessageSquare, LogOut } from 'lucide-react'
 import { useSessionStore, getStoredSession } from '@/lib/session-store'
 import { apiClient } from '@/lib/api'
 import { formatSessionCode, cn } from '@/lib/utils'
@@ -17,7 +17,7 @@ import { GameMode } from '@/types'
 export function Lobby() {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
-  const { session, me, setMe, connect, isConnected } = useSessionStore()
+  const { session, me, setMe, connect, isConnected, reset } = useSessionStore()
   const [showHowToPlay, setShowHowToPlay] = useState(false)
 
   const startGameMutation = useMutation({
@@ -73,22 +73,23 @@ export function Lobby() {
     }
   })
 
-  // Validate session and connect
+  // Check for valid session data - redirect immediately if missing
+  const storedSession = getStoredSession()
+  const hasValidSession = storedSession && me.token
+
+  // Validate session and connect - only run when code/token change, not on every state update
   useEffect(() => {
-    // Check if session is expired
-    const sessionData = getStoredSession()
-    if (!sessionData) {
+    if (!hasValidSession) {
       // Session expired or invalid, redirect to home
-      navigate('/')
+      navigate('/', { replace: true })
       return
     }
 
     if (code && me.token) {
       connect(code, me.token)
-    } else {
-      navigate('/')
     }
-  }, [code, me.token, connect, navigate])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, me.token, hasValidSession])
 
   useEffect(() => {
     if (session?.phase !== 'lobby') {
@@ -118,6 +119,11 @@ export function Lobby() {
   const canStart = session && session.players.length >= 4 && allReady
   const myPlayer = session?.players.find(p => p.id === me.playerId)
 
+  // If no valid session, show nothing (useEffect will redirect)
+  if (!hasValidSession) {
+    return null
+  }
+
   if (!session || !isConnected) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -130,7 +136,7 @@ export function Lobby() {
   }
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4 relative z-10">
       <div className="max-w-4xl mx-auto">
         {/* How to Play Modal */}
         {showHowToPlay && (
@@ -142,23 +148,20 @@ export function Lobby() {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
+          {/* Title + Code in one row */}
+          <div className="flex items-center justify-center gap-3 mb-3">
             <h1 className="text-3xl font-bold">Game Lobby</h1>
-            <Badge variant="outline" className="text-lg px-3 py-1">
-              {formatSessionCode(session.code)}
-            </Badge>
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
               onClick={handleCopyCode}
-              className="h-8 w-8"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-muted hover:bg-muted/20 transition-colors"
             >
-              <Copy className="h-4 w-4" />
-            </Button>
+              <span className="text-lg font-mono text-muted-foreground">{formatSessionCode(session.code)}</span>
+              <Copy className="h-4 w-4 text-muted-foreground" />
+            </button>
           </div>
 
           {/* Game Mode Badge */}
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-3">
             {session.gameMode === 'places_roles' ? (
               <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 px-3 py-1 gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />
@@ -417,43 +420,27 @@ export function Lobby() {
           </Card>
         )}
 
-        {/* Instructions */}
-        <Card className="game-card mt-6">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <HelpCircle className="h-5 w-5" />
-              How to Play
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowHowToPlay(true)}
-              className="gap-1.5"
-            >
-              <HelpCircle className="h-4 w-4" />
-              View Tutorial
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {session.gameMode === 'places_roles' ? (
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>• Everyone is at the same secret location with unique roles</p>
-                <p>• One player (Mr/Ms White) doesn't know the place or their role</p>
-                <p>• Take turns asking questions: "How did you get here?", "What are you doing?"</p>
-                <p>• Answer in character based on your role and location</p>
-                <p>• Vote for who you think is Mr/Ms White - they must blend in!</p>
-                <p>• If White is caught, they get one chance to guess the location!</p>
-              </div>
-            ) : (
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>• Everyone gets the same secret word except one player (Mr/Ms White)</p>
-                <p>• Take turns giving clues about the word without saying it</p>
-                <p>• After everyone speaks, vote for who you think is Mr/Ms White</p>
-                <p>• If White is caught, they get one chance to guess the word!</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Footer Actions */}
+        <div className="mt-6 flex items-center justify-center gap-4">
+          <Button
+            variant="ghost"
+            size="lg"
+            onClick={() => setShowHowToPlay(true)}
+            className="text-muted-foreground hover:text-foreground gap-2"
+          >
+            <HelpCircle className="h-5 w-5" />
+            How to Play
+          </Button>
+          <Button
+            variant="ghost"
+            size="lg"
+            onClick={() => { reset(); navigate('/'); }}
+            className="text-muted-foreground hover:text-red-400 gap-2"
+          >
+            <LogOut className="h-5 w-5" />
+            Leave Lobby
+          </Button>
+        </div>
       </div>
     </div>
   )

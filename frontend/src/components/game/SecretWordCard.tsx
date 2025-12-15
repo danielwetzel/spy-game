@@ -17,9 +17,9 @@ export function SecretWordCard({ isWhite, secretWord, gameMode, place, playerRol
 
   if (isWhite) {
     return (
-      <Card className="relative overflow-hidden border-red-500/50 bg-gradient-to-br from-red-500/20 via-red-600/10 to-orange-500/20">
-        {/* Animated glow */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/10 to-transparent animate-shimmer" />
+      <Card className="secret-word-card relative overflow-hidden border-red-500/50 bg-gradient-to-br from-red-500/20 via-red-600/10 to-orange-500/20 animate-fade-in">
+        {/* Shimmer effect - runs twice */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/20 to-transparent shimmer-twice" />
 
         <CardContent className="relative p-8 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -33,7 +33,7 @@ export function SecretWordCard({ isWhite, secretWord, gameMode, place, playerRol
             Mr/Ms White
           </Badge>
 
-          <div className="space-y-2">
+          <div className="space-y-2 animate-slide-up">
             <p className="text-xl font-bold text-red-300">
               {isPlacesRolesMode
                 ? "You don't know the location or your role!"
@@ -45,9 +45,6 @@ export function SecretWordCard({ isWhite, secretWord, gameMode, place, playerRol
                 : "Listen carefully and blend in with the others..."}
             </p>
           </div>
-
-          {/* Decorative elements */}
-          <div className="absolute top-4 right-4 text-4xl opacity-10">🎭</div>
         </CardContent>
       </Card>
     )
@@ -77,61 +74,47 @@ export function SecretWordCard({ isWhite, secretWord, gameMode, place, playerRol
 
     // Show place and role
     return (
-      <Card className="relative overflow-hidden border-purple-500/50 bg-gradient-to-br from-purple-500/20 via-pink-500/10 to-blue-500/20">
-        {/* Animated glow */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/10 to-transparent animate-shimmer" />
+      <Card className="secret-word-card relative overflow-hidden border-purple-500/50 bg-gradient-to-br from-purple-500/20 via-pink-500/10 to-blue-500/20 animate-fade-in">
+        {/* Shimmer effect - runs twice */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent shimmer-twice" />
 
         <CardContent className="relative p-6 text-center">
           {/* Location Section */}
-          <div className="mb-6">
+          <div className="mb-6 animate-slide-up">
             <div className="flex items-center justify-center gap-2 mb-3">
               <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 px-3 py-1">
                 <MapPin className="h-3 w-3 mr-1" />
                 Secret Location
               </Badge>
             </div>
-            <div className="relative inline-block">
-              <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent animate-gradient">
-                {place}
-              </div>
-              <div className="absolute inset-0 text-2xl md:text-3xl font-bold text-purple-500 blur-lg opacity-30">
-                {place}
-              </div>
+            <div className="text-2xl md:text-3xl font-bold text-purple-400">
+              {place}
             </div>
           </div>
 
           {/* Divider */}
           <div className="flex items-center gap-4 mb-6">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
+            <div className="flex-1 h-px bg-purple-500/30" />
             <span className="text-xs text-muted-foreground uppercase tracking-wider">Your Role</span>
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
+            <div className="flex-1 h-px bg-purple-500/30" />
           </div>
 
           {/* Role Section */}
-          <div>
+          <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center justify-center gap-2 mb-3">
               <Badge className="bg-pink-500/20 text-pink-400 border-pink-500/30 px-3 py-1">
                 <User className="h-3 w-3 mr-1" />
                 Your Character
               </Badge>
             </div>
-            <div className="relative inline-block">
-              <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pink-400 via-rose-400 to-orange-400 bg-clip-text text-transparent animate-gradient">
-                {playerRole}
-              </div>
-              <div className="absolute inset-0 text-2xl md:text-3xl font-bold text-pink-500 blur-lg opacity-30">
-                {playerRole}
-              </div>
+            <div className="text-2xl md:text-3xl font-bold text-pink-400">
+              {playerRole}
             </div>
           </div>
 
           <p className="text-purple-400/80 text-sm mt-4">
             Answer questions in character based on your role!
           </p>
-
-          {/* Decorative elements */}
-          <div className="absolute top-4 right-4 text-3xl opacity-10">🗺️</div>
-          <div className="absolute bottom-4 left-4 text-2xl opacity-10">🎭</div>
         </CardContent>
       </Card>
     )
@@ -158,9 +141,9 @@ export function SecretWordCard({ isWhite, secretWord, gameMode, place, playerRol
 
   // Classic word mode
   return (
-    <Card className="relative overflow-hidden border-primary/50 bg-gradient-to-br from-primary/20 via-blue-500/10 to-purple-500/20">
-      {/* Animated glow */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-shimmer" />
+    <Card className="secret-word-card relative overflow-hidden border-primary/50 bg-gradient-to-br from-primary/20 via-blue-500/10 to-purple-500/20 animate-fade-in">
+      {/* Shimmer effect - runs twice */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent shimmer-twice" />
 
       <CardContent className="relative p-8 text-center">
         <div className="flex items-center justify-center gap-2 mb-4">
@@ -170,23 +153,13 @@ export function SecretWordCard({ isWhite, secretWord, gameMode, place, playerRol
           </Badge>
         </div>
 
-        <div className="relative inline-block">
-          <div className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-primary to-purple-400 bg-clip-text text-transparent mb-4 animate-gradient">
-            {secretWord}
-          </div>
-          {/* Glow effect behind text */}
-          <div className="absolute inset-0 text-4xl md:text-5xl font-bold text-primary blur-lg opacity-30">
-            {secretWord}
-          </div>
+        <div className="text-4xl md:text-5xl font-bold text-primary mb-4 animate-slide-up">
+          {secretWord}
         </div>
 
         <p className="text-primary/80 text-sm">
           Give clues without saying this word!
         </p>
-
-        {/* Decorative elements */}
-        <div className="absolute top-4 right-4 text-4xl opacity-10">👁️</div>
-        <div className="absolute bottom-4 left-4 text-3xl opacity-10">🔮</div>
       </CardContent>
     </Card>
   )

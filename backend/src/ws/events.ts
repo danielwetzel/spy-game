@@ -222,10 +222,28 @@ export function setupSocketEvents(io: any) {
                 } else {
                   // During game, just mark as disconnected (don't remove)
                   player.isConnected = false;
+
+                  // If host leaves during 'ended' phase, reassign host to another connected player
+                  if (sessionData.state.phase === 'ended' && sessionData.state.hostPlayerId === playerId) {
+                    const connectedPlayer = sessionData.state.players.find(p =>
+                      p.id !== playerId && gameStore.isPlayerConnected(code, p.id)
+                    );
+                    if (connectedPlayer) {
+                      sessionData.state.hostPlayerId = connectedPlayer.id;
+                      console.log(`Host left in ended phase, new host: ${connectedPlayer.name}`);
+                    }
+                  }
+
                   gameStore.updateState(code, sessionData.state);
 
-                  // Broadcast player disconnection
-                  socket.to(code).emit('session/players_update', sessionData.state.players);
+                  // Broadcast player disconnection and updated state (for host change)
+                  io.to(code).emit('session/players_update', sessionData.state.players);
+                  io.to(code).emit('session/state', {
+                    ...sessionData.state,
+                    secretWord: null,
+                    secretPlace: null,
+                    playerRoles: null
+                  });
 
                   // Handle disconnection during active turn
                   if (sessionData.state.phase === 'round_play' &&
