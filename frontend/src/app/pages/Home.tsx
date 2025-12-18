@@ -116,7 +116,7 @@ export function Home() {
             </span>
           </h1>
           <p className="text-muted-foreground mb-4">
-            The Ultimate Secret Agent Party Game
+            The ultimate party game, <span className="text-purple-400 animate-pulse">now even better ✨</span>
           </p>
           <Button
             variant="ghost"
